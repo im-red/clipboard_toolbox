@@ -33,8 +33,7 @@ class AutoSaveWidget : public QWidget {
 
  private:
   void setupUi();
-  void saveImage(const QImage &image, const QString &source,
-                 const QString &originalName = QString());
+  void saveImage(const QImage &image, const QString &source, const QString &originalName = QString());
   void loadSettings();
   void saveSettings();
   void loadChecksums();

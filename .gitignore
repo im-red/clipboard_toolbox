@@ -5,3 +5,4 @@ build-qtc
 .vscode
 CMakeLists.txt.user
 .backup
+.qtcreator

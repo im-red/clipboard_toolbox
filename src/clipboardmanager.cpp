@@ -34,8 +34,7 @@ ClipboardManager::ClipboardManager(QObject *parent)
   m_trayIcon->setIcon(trayIcon);
   m_trayIcon->setVisible(true);
 
-  connect(m_clipboard, &QClipboard::dataChanged, this,
-          &ClipboardManager::handleClipboardChanged);
+  connect(m_clipboard, &QClipboard::dataChanged, this, &ClipboardManager::handleClipboardChanged);
   updateFromClipboard();
 }
 
@@ -43,17 +42,13 @@ bool ClipboardManager::hasImage() const { return m_hasImage; }
 
 bool ClipboardManager::hasText() const { return m_hasText; }
 
-const QMimeData *ClipboardManager::mimeData() const {
-  return m_clipboard->mimeData();
-}
+const QMimeData *ClipboardManager::mimeData() const { return m_clipboard->mimeData(); }
 
 QString ClipboardManager::latestText() const { return m_latestText; }
 
 QImage ClipboardManager::latestImage() const { return m_latestImage; }
 
-SettingsManager *ClipboardManager::settingsManager() const {
-  return m_settingsManager;
-}
+SettingsManager *ClipboardManager::settingsManager() const { return m_settingsManager; }
 
 HistoryManager *ClipboardManager::historyManager() { return &m_historyManager; }
 
@@ -63,29 +58,22 @@ void ClipboardManager::saveImageToFile(const QString &path) {
   qDebug() << "Attempting to save image to:" << path;
   QString localPath = normalizeLocalPath(path);
   QImage image = m_clipboard->image();
-  bool success =
-      !image.isNull() && !localPath.isEmpty() && image.save(localPath);
+  bool success = !image.isNull() && !localPath.isEmpty() && image.save(localPath);
 
   if (success) {
     qDebug() << "Image saved successfully";
-    logAction("Image saved to " + localPath, EventCategory::AutoSaveImage,
-              EventLevel::Info);
+    logAction("Image saved to " + localPath, EventCategory::AutoSaveImage, EventLevel::Info);
   } else {
-    qDebug() << "Failed to save image. Image null:" << image.isNull()
-             << "Path empty:" << localPath.isEmpty();
-    logAction("Failed to save image to " + localPath,
-              EventCategory::AutoSaveImage, EventLevel::Error);
+    qDebug() << "Failed to save image. Image null:" << image.isNull() << "Path empty:" << localPath.isEmpty();
+    logAction("Failed to save image to " + localPath, EventCategory::AutoSaveImage, EventLevel::Error);
   }
 }
 
-void ClipboardManager::logAction(const QString &content, EventCategory category,
-                                 EventLevel level) {
-  qDebug() << "Logging action:" << content << "Category:" << (int)category
-           << "Level:" << (int)level;
+void ClipboardManager::logAction(const QString &content, EventCategory category, EventLevel level) {
+  qDebug() << "Logging action:" << content << "Category:" << (int)category << "Level:" << (int)level;
   m_historyManager.addEntry(content, category, level);
 
-  if (m_settingsManager->notificationsEnabled() &&
-      level >= m_settingsManager->notificationLevel() &&
+  if (m_settingsManager->notificationsEnabled() && level >= m_settingsManager->notificationLevel() &&
       m_settingsManager->isCategoryNotificationEnabled(category)) {
     QString title = "Clipboard Toolbox";
     if (category == EventCategory::Copy) {
@@ -146,8 +134,7 @@ void ClipboardManager::updateFromClipboard() {
     changed = true;
   }
   if (changed) {
-    qDebug() << "Internal state updated from clipboard. HasImage:" << m_hasImage
-             << "HasText:" << m_hasText;
+    qDebug() << "Internal state updated from clipboard. HasImage:" << m_hasImage << "HasText:" << m_hasText;
     emit clipboardChanged();
   } else {
     qDebug() << "Internal state not updated";
@@ -177,10 +164,7 @@ QString ClipboardManager::summarizeMime(const QMimeData *mime) const {
     if (result != "") {
       result += " ";
     }
-    result += QString("<Image %1x%2 %3>")
-                  .arg(image.width())
-                  .arg(image.height())
-                  .arg(format);
+    result += QString("<Image %1x%2 %3>").arg(image.width()).arg(image.height()).arg(format);
   }
   if (result == "" && !mime->formats().isEmpty()) {
     result = QString("Clipboard data: %1").arg(mime->formats().first());
@@ -196,9 +180,7 @@ QString ClipboardManager::normalizeLocalPath(const QString &path) const {
   return path;
 }
 
-void ClipboardManager::showNotification(const QString &title,
-                                        const QString &message,
-                                        EventLevel level) {
+void ClipboardManager::showNotification(const QString &title, const QString &message, EventLevel level) {
   if (m_trayIcon && m_trayIcon->isVisible()) {
     QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information;
     switch (level) {

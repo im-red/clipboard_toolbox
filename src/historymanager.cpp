@@ -7,9 +7,7 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 
-HistoryManager::HistoryManager(QObject *parent) : QAbstractListModel(parent) {
-  loadHistory();
-}
+HistoryManager::HistoryManager(QObject *parent) : QAbstractListModel(parent) { loadHistory(); }
 
 HistoryManager::~HistoryManager() { saveHistory(); }
 
@@ -30,8 +28,7 @@ QVariant HistoryManager::data(const QModelIndex &index, int role) const {
   }
   // Format: <TIMESTAMP>: [<LEVEL>] [<CATEGORY>] <CONTENT>
   return QString("%1: [%2] [%3] %4")
-      .arg(entry.time.toString("yyyy-MM-dd HH:mm:ss"),
-           levelToString(entry.level), categoryToString(entry.category),
+      .arg(entry.time.toString("yyyy-MM-dd HH:mm:ss"), levelToString(entry.level), categoryToString(entry.category),
            entry.content);
 }
 
@@ -49,8 +46,7 @@ void HistoryManager::addEvent(const EventItem &item) {
   saveHistory();
 }
 
-void HistoryManager::addEntry(const QString &content, EventCategory category,
-                              EventLevel level) {
+void HistoryManager::addEntry(const QString &content, EventCategory category, EventLevel level) {
   EventItem item;
   item.time = QDateTime::currentDateTime();
   item.category = category;
@@ -116,8 +112,7 @@ EventLevel HistoryManager::stringToLevel(const QString &str) {
 }
 
 void HistoryManager::loadHistory() {
-  QString path =
-      QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
   QFile file(QDir(path).filePath("history.json"));
 
   if (!file.exists()) {
@@ -147,8 +142,7 @@ void HistoryManager::loadHistory() {
 }
 
 void HistoryManager::saveHistory() const {
-  QString path =
-      QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
   QDir dir(path);
   if (!dir.exists()) {
     dir.mkpath(".");

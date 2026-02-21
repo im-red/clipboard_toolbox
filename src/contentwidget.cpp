@@ -16,13 +16,11 @@
 
 #include "clipboardmanager.h"
 
-ContentWidget::ContentWidget(ClipboardManager *manager, QWidget *parent)
-    : QWidget(parent), m_manager(manager) {
+ContentWidget::ContentWidget(ClipboardManager *manager, QWidget *parent) : QWidget(parent), m_manager(manager) {
   setupUi();
   updateContent();
 
-  connect(m_manager, &ClipboardManager::clipboardChanged, this,
-          &ContentWidget::updateContent);
+  connect(m_manager, &ClipboardManager::clipboardChanged, this, &ContentWidget::updateContent);
 }
 
 void ContentWidget::setupUi() {
@@ -60,27 +58,24 @@ void ContentWidget::setupUi() {
   m_textViewer->setVisible(false);
   mainLayout->addWidget(m_textViewer);
 
-  m_emptyClipboardLabel =
-      new QLabel("Clipboard is empty or unsupported content");
+  m_emptyClipboardLabel = new QLabel("Clipboard is empty or unsupported content");
   m_emptyClipboardLabel->setAlignment(Qt::AlignCenter);
   m_emptyClipboardLabel->setStyleSheet("color: gray;");
   mainLayout->addWidget(m_emptyClipboardLabel);
 
-  connect(m_imageLabel, &QLabel::customContextMenuRequested, this,
-          [this](const QPoint &pos) {
-            QMenu menu(this);
-            QAction *saveAction = menu.addAction("Save Image As...");
-            saveAction->setEnabled(m_manager->hasImage());
-            QAction *selected = menu.exec(m_imageLabel->mapToGlobal(pos));
-            if (selected == saveAction) {
-              QString fileName = QFileDialog::getSaveFileName(
-                  this, "Save image", QString(),
-                  "Images (*.png *.jpg *.jpeg *.bmp *.gif)");
-              if (!fileName.isEmpty()) {
-                m_manager->saveImageToFile(fileName);
-              }
-            }
-          });
+  connect(m_imageLabel, &QLabel::customContextMenuRequested, this, [this](const QPoint &pos) {
+    QMenu menu(this);
+    QAction *saveAction = menu.addAction("Save Image As...");
+    saveAction->setEnabled(m_manager->hasImage());
+    QAction *selected = menu.exec(m_imageLabel->mapToGlobal(pos));
+    if (selected == saveAction) {
+      QString fileName =
+          QFileDialog::getSaveFileName(this, "Save image", QString(), "Images (*.png *.jpg *.jpeg *.bmp *.gif)");
+      if (!fileName.isEmpty()) {
+        m_manager->saveImageToFile(fileName);
+      }
+    }
+  });
 }
 
 void ContentWidget::updateContent() {
@@ -94,8 +89,7 @@ void ContentWidget::updateContent() {
       if (targetSize.width() <= 0 || targetSize.height() <= 0) {
         targetSize = QSize(640, 240);
       }
-      QPixmap pixmap = QPixmap::fromImage(image).scaled(
-          targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+      QPixmap pixmap = QPixmap::fromImage(image).scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
       m_imageLabel->setPixmap(pixmap);
       m_imageLabel->setVisible(true);
 
@@ -189,8 +183,7 @@ void ContentWidget::resizeEvent(QResizeEvent *event) {
       if (targetSize.width() <= 0 || targetSize.height() <= 0) {
         return;
       }
-      QPixmap pixmap = QPixmap::fromImage(image).scaled(
-          targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+      QPixmap pixmap = QPixmap::fromImage(image).scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
       m_imageLabel->setPixmap(pixmap);
     }
   }

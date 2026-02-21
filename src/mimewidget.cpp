@@ -12,13 +12,11 @@
 
 #include "clipboardmanager.h"
 
-MimeWidget::MimeWidget(ClipboardManager *manager, QWidget *parent)
-    : QWidget(parent), m_manager(manager) {
+MimeWidget::MimeWidget(ClipboardManager *manager, QWidget *parent) : QWidget(parent), m_manager(manager) {
   setupUi();
   updateContent();
 
-  connect(m_manager, &ClipboardManager::clipboardChanged, this,
-          &MimeWidget::updateContent);
+  connect(m_manager, &ClipboardManager::clipboardChanged, this, &MimeWidget::updateContent);
 }
 
 void MimeWidget::setupUi() {
@@ -35,32 +33,31 @@ void MimeWidget::setupUi() {
 
   mainLayout->addWidget(m_mimeTable);
 
-  connect(m_mimeTable, &QTableWidget::cellDoubleClicked, this,
-          [this](int row, int column) {
-            if (column != 1) return;
-            auto *item = m_mimeTable->item(row, column);
-            if (!item) return;
+  connect(m_mimeTable, &QTableWidget::cellDoubleClicked, this, [this](int row, int column) {
+    if (column != 1) return;
+    auto *item = m_mimeTable->item(row, column);
+    if (!item) return;
 
-            // Check if elided
-            // 1. Data size check (if > 4096)
-            QString format = m_mimeTable->item(row, 0)->text();
-            const QMimeData *mime = m_manager->mimeData();
-            if (mime && mime->hasFormat(format)) {
-              QByteArray data = mime->data(format);
-              if (data.size() > 4096) {
-                showFullMimeContent(format);
-                return;
-              }
-            }
+    // Check if elided
+    // 1. Data size check (if > 4096)
+    QString format = m_mimeTable->item(row, 0)->text();
+    const QMimeData *mime = m_manager->mimeData();
+    if (mime && mime->hasFormat(format)) {
+      QByteArray data = mime->data(format);
+      if (data.size() > 4096) {
+        showFullMimeContent(format);
+        return;
+      }
+    }
 
-            // 2. Visual check
-            int colWidth = m_mimeTable->columnWidth(column);
-            QFontMetrics fm(m_mimeTable->font());
-            int textWidth = fm.horizontalAdvance(item->text());
-            if (textWidth > colWidth - 10) {  // Simple margin
-              showFullMimeContent(format);
-            }
-          });
+    // 2. Visual check
+    int colWidth = m_mimeTable->columnWidth(column);
+    QFontMetrics fm(m_mimeTable->font());
+    int textWidth = fm.horizontalAdvance(item->text());
+    if (textWidth > colWidth - 10) {  // Simple margin
+      showFullMimeContent(format);
+    }
+  });
 }
 
 void MimeWidget::updateContent() {
@@ -83,14 +80,11 @@ void MimeWidget::updateContent() {
       // Try UTF-8
       QString utf8Str = QString::fromUtf8(previewData);
       // Try UTF-16
-      QString utf16Str = QString::fromUtf16(
-          reinterpret_cast<const ushort *>(previewData.constData()),
-          previewData.size() / 2);
+      QString utf16Str =
+          QString::fromUtf16(reinterpret_cast<const ushort *>(previewData.constData()), previewData.size() / 2);
 
-      bool utf8Valid = !utf8Str.contains(QChar::ReplacementCharacter) &&
-                       !utf8Str.contains('\0');
-      bool utf16Valid = !utf16Str.contains(QChar::ReplacementCharacter) &&
-                        !utf16Str.contains('\0');
+      bool utf8Valid = !utf8Str.contains(QChar::ReplacementCharacter) && !utf8Str.contains('\0');
+      bool utf16Valid = !utf16Str.contains(QChar::ReplacementCharacter) && !utf16Str.contains('\0');
 
       if (utf8Valid) {
         displayStr = utf8Str;
@@ -141,13 +135,10 @@ void MimeWidget::showFullMimeContent(const QString &format) {
   // Try UTF-8
   QString utf8Str = QString::fromUtf8(data);
   // Try UTF-16
-  QString utf16Str = QString::fromUtf16(
-      reinterpret_cast<const ushort *>(data.constData()), data.size() / 2);
+  QString utf16Str = QString::fromUtf16(reinterpret_cast<const ushort *>(data.constData()), data.size() / 2);
 
-  bool utf8Valid =
-      !utf8Str.contains(QChar::ReplacementCharacter) && !utf8Str.contains('\0');
-  bool utf16Valid = !utf16Str.contains(QChar::ReplacementCharacter) &&
-                    !utf16Str.contains('\0');
+  bool utf8Valid = !utf8Str.contains(QChar::ReplacementCharacter) && !utf8Str.contains('\0');
+  bool utf16Valid = !utf16Str.contains(QChar::ReplacementCharacter) && !utf16Str.contains('\0');
 
   if (utf8Valid) {
     displayStr = utf8Str;

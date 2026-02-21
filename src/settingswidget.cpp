@@ -10,25 +10,21 @@
 #include "clipboardmanager.h"
 #include "settingsmanager.h"
 
-SettingsWidget::SettingsWidget(ClipboardManager *manager, QWidget *parent)
-    : QWidget(parent), m_manager(manager) {
+SettingsWidget::SettingsWidget(ClipboardManager *manager, QWidget *parent) : QWidget(parent), m_manager(manager) {
   setupUi();
   updateNotificationToggle();
   updateNotificationLevel();
   updateCategoryToggles();
   updateExitOnCloseToggle();
 
-  connect(m_manager->settingsManager(),
-          &SettingsManager::notificationsEnabledChanged, this,
+  connect(m_manager->settingsManager(), &SettingsManager::notificationsEnabledChanged, this,
           &SettingsWidget::updateNotificationToggle);
-  connect(m_manager->settingsManager(),
-          &SettingsManager::notificationLevelChanged, this,
+  connect(m_manager->settingsManager(), &SettingsManager::notificationLevelChanged, this,
           &SettingsWidget::updateNotificationLevel);
-  connect(m_manager->settingsManager(),
-          &SettingsManager::categoryNotificationEnabledChanged, this,
+  connect(m_manager->settingsManager(), &SettingsManager::categoryNotificationEnabledChanged, this,
           &SettingsWidget::updateCategoryToggles);
-  connect(m_manager->settingsManager(), &SettingsManager::exitOnCloseChanged,
-          this, &SettingsWidget::updateExitOnCloseToggle);
+  connect(m_manager->settingsManager(), &SettingsManager::exitOnCloseChanged, this,
+          &SettingsWidget::updateExitOnCloseToggle);
 }
 
 void SettingsWidget::setupUi() {
@@ -38,15 +34,13 @@ void SettingsWidget::setupUi() {
 
   auto *generalGroup = new QGroupBox("General");
   auto *generalLayout = new QHBoxLayout(generalGroup);
-  m_exitOnCloseToggle =
-      new QCheckBox("Exit application when main window is closed");
+  m_exitOnCloseToggle = new QCheckBox("Exit application when main window is closed");
   generalLayout->addWidget(m_exitOnCloseToggle);
   generalLayout->addStretch();
   layout->addWidget(generalGroup);
 
-  connect(m_exitOnCloseToggle, &QCheckBox::toggled, this, [this](bool checked) {
-    m_manager->settingsManager()->setExitOnClose(checked);
-  });
+  connect(m_exitOnCloseToggle, &QCheckBox::toggled, this,
+          [this](bool checked) { m_manager->settingsManager()->setExitOnClose(checked); });
 
   auto *notificationGroup = new QGroupBox("Notifications");
   auto *notificationLayout = new QVBoxLayout(notificationGroup);
@@ -76,27 +70,20 @@ void SettingsWidget::setupUi() {
   layout->addWidget(notificationGroup);
 
   connect(m_notificationToggle, &QCheckBox::toggled, this,
-          [this](bool checked) {
-            m_manager->settingsManager()->setNotificationsEnabled(checked);
-          });
+          [this](bool checked) { m_manager->settingsManager()->setNotificationsEnabled(checked); });
 
-  connect(m_levelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-          this, [this](int index) {
-            EventLevel level =
-                (EventLevel)m_levelCombo->itemData(index).toInt();
-            m_manager->settingsManager()->setNotificationLevel(level);
-          });
-
-  connect(m_copyNotifyToggle, &QCheckBox::toggled, this, [this](bool checked) {
-    m_manager->settingsManager()->setCategoryNotificationEnabled(
-        EventCategory::Copy, checked);
+  connect(m_levelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+    EventLevel level = (EventLevel)m_levelCombo->itemData(index).toInt();
+    m_manager->settingsManager()->setNotificationLevel(level);
   });
 
-  connect(m_autoSaveNotifyToggle, &QCheckBox::toggled, this,
-          [this](bool checked) {
-            m_manager->settingsManager()->setCategoryNotificationEnabled(
-                EventCategory::AutoSaveImage, checked);
-          });
+  connect(m_copyNotifyToggle, &QCheckBox::toggled, this, [this](bool checked) {
+    m_manager->settingsManager()->setCategoryNotificationEnabled(EventCategory::Copy, checked);
+  });
+
+  connect(m_autoSaveNotifyToggle, &QCheckBox::toggled, this, [this](bool checked) {
+    m_manager->settingsManager()->setCategoryNotificationEnabled(EventCategory::AutoSaveImage, checked);
+  });
 
   layout->addStretch();
 }
@@ -125,15 +112,12 @@ void SettingsWidget::updateNotificationLevel() {
 
 void SettingsWidget::updateCategoryToggles() {
   m_copyNotifyToggle->blockSignals(true);
-  m_copyNotifyToggle->setChecked(
-      m_manager->settingsManager()->isCategoryNotificationEnabled(
-          EventCategory::Copy));
+  m_copyNotifyToggle->setChecked(m_manager->settingsManager()->isCategoryNotificationEnabled(EventCategory::Copy));
   m_copyNotifyToggle->blockSignals(false);
 
   m_autoSaveNotifyToggle->blockSignals(true);
   m_autoSaveNotifyToggle->setChecked(
-      m_manager->settingsManager()->isCategoryNotificationEnabled(
-          EventCategory::AutoSaveImage));
+      m_manager->settingsManager()->isCategoryNotificationEnabled(EventCategory::AutoSaveImage));
   m_autoSaveNotifyToggle->blockSignals(false);
 }
 

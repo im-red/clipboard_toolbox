@@ -29,8 +29,8 @@ class SettingsManager : public QObject {
   QString autoSavePath() const;
   void setAutoSavePath(const QString &path);
 
-  QStringList recentAutoSavePaths() const; // Added
-  void setRecentAutoSavePaths(const QStringList &paths); // Added
+  QStringList recentAutoSavePaths() const;                // Added
+  void setRecentAutoSavePaths(const QStringList &paths);  // Added
 
   int autoSaveMaxSizeMB() const;
   void setAutoSaveMaxSizeMB(int sizeMB);
@@ -42,7 +42,7 @@ class SettingsManager : public QObject {
   void exitOnCloseChanged(bool exit);
   void autoSaveEnabledChanged(bool enabled);
   void autoSavePathChanged(const QString &path);
-  void recentAutoSavePathsChanged(const QStringList &paths); // Added
+  void recentAutoSavePathsChanged(const QStringList &paths);  // Added
   void autoSaveMaxSizeMBChanged(int sizeMB);
 
  private:
@@ -56,6 +56,6 @@ class SettingsManager : public QObject {
   bool m_exitOnClose = false;
   bool m_autoSaveEnabled = false;
   QString m_autoSavePath;
-  QStringList m_recentAutoSavePaths; // Added
+  QStringList m_recentAutoSavePaths;  // Added
   int m_autoSaveMaxSizeMB = 30;
 };

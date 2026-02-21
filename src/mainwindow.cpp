@@ -50,22 +50,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
       }
     });
 
-    connect(exitAction, &QAction::triggered,
-            []() { QCoreApplication::quit(); });
+    connect(exitAction, &QAction::triggered, []() { QCoreApplication::quit(); });
 
     tray->setContextMenu(trayMenu);
 
-    connect(tray, &QSystemTrayIcon::activated, this,
-            [this](QSystemTrayIcon::ActivationReason reason) {
-              if (reason == QSystemTrayIcon::Trigger) {
-                if (isVisible()) {
-                  hide();
-                } else {
-                  show();
-                  activateWindow();
-                }
-              }
-            });
+    connect(tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+      if (reason == QSystemTrayIcon::Trigger) {
+        if (isVisible()) {
+          hide();
+        } else {
+          show();
+          activateWindow();
+        }
+      }
+    });
   }
 }
 
@@ -77,8 +75,7 @@ void MainWindow::setupUi() {
   auto *fileMenu = menuBar->addMenu("File");
   auto *openDataFolderAction = fileMenu->addAction("Open data folder");
   connect(openDataFolderAction, &QAction::triggered, this, []() {
-    QString path =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir dir(path);
     if (!dir.exists()) {
       dir.mkpath(".");
@@ -116,21 +113,17 @@ void MainWindow::setupUi() {
   splitter->setSizes({432, 288});
 }
 
-void MainWindow::resizeEvent(QResizeEvent *event) {
-  QWidget::resizeEvent(event);
-}
+void MainWindow::resizeEvent(QResizeEvent *event) { QWidget::resizeEvent(event); }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-  if (!event->spontaneous() ||
-      m_clipboardManager.settingsManager()->exitOnClose()) {
+  if (!event->spontaneous() || m_clipboardManager.settingsManager()->exitOnClose()) {
     event->accept();
   } else {
     event->ignore();
     hide();
     if (auto *tray = m_clipboardManager.trayIcon()) {
-      tray->showMessage("Clipboard Toolbox",
-                        "Application is running in the background.",
-                        QSystemTrayIcon::Information, 2000);
+      tray->showMessage("Clipboard Toolbox", "Application is running in the background.", QSystemTrayIcon::Information,
+                        2000);
     }
   }
 }

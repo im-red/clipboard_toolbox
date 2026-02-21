@@ -5,33 +5,25 @@
 
 SettingsManager::SettingsManager(QObject *parent) : QObject(parent) {
   QSettings settings = createSettings();
-  m_notificationsEnabled =
-      settings.value("notificationsEnabled", true).toBool();
+  m_notificationsEnabled = settings.value("notificationsEnabled", true).toBool();
   m_exitOnClose = settings.value("exitOnClose", false).toBool();
   m_autoSaveEnabled = settings.value("autoSaveEnabled", false).toBool();
   m_autoSavePath = settings.value("autoSavePath", "").toString();
-  m_recentAutoSavePaths =
-      settings.value("recentAutoSavePaths").toStringList();  // Added
+  m_recentAutoSavePaths = settings.value("recentAutoSavePaths").toStringList();  // Added
   m_autoSaveMaxSizeMB = settings.value("autoSaveMaxSizeMB", 30).toInt();
 
-  int levelInt =
-      settings.value("notificationLevel", (int)EventLevel::Info).toInt();
+  int levelInt = settings.value("notificationLevel", (int)EventLevel::Info).toInt();
   m_notificationLevel = static_cast<EventLevel>(levelInt);
 
   // Initialize categories with defaults
-  m_copyNotificationEnabled =
-      settings.value("categoryNotification_Copy", true).toBool();
-  m_autoSaveNotificationEnabled =
-      settings.value("categoryNotification_AutoSaveImage", true).toBool();
+  m_copyNotificationEnabled = settings.value("categoryNotification_Copy", true).toBool();
+  m_autoSaveNotificationEnabled = settings.value("categoryNotification_AutoSaveImage", true).toBool();
 
-  qDebug() << "Settings loaded. Copy:" << m_copyNotificationEnabled
-           << "AutoSave:" << m_autoSaveNotificationEnabled << "from"
-           << settings.fileName();
+  qDebug() << "Settings loaded. Copy:" << m_copyNotificationEnabled << "AutoSave:" << m_autoSaveNotificationEnabled
+           << "from" << settings.fileName();
 }
 
-EventLevel SettingsManager::notificationLevel() const {
-  return m_notificationLevel;
-}
+EventLevel SettingsManager::notificationLevel() const { return m_notificationLevel; }
 
 void SettingsManager::setNotificationLevel(EventLevel level) {
   if (m_notificationLevel == level) {
@@ -43,8 +35,7 @@ void SettingsManager::setNotificationLevel(EventLevel level) {
   emit notificationLevelChanged(level);
 }
 
-bool SettingsManager::isCategoryNotificationEnabled(
-    EventCategory category) const {
+bool SettingsManager::isCategoryNotificationEnabled(EventCategory category) const {
   if (category == EventCategory::Copy) {
     return m_copyNotificationEnabled;
   } else if (category == EventCategory::AutoSaveImage) {
@@ -53,8 +44,7 @@ bool SettingsManager::isCategoryNotificationEnabled(
   return true;
 }
 
-void SettingsManager::setCategoryNotificationEnabled(EventCategory category,
-                                                     bool enabled) {
+void SettingsManager::setCategoryNotificationEnabled(EventCategory category, bool enabled) {
   bool *target = nullptr;
   if (category == EventCategory::Copy) {
     target = &m_copyNotificationEnabled;
@@ -68,22 +58,18 @@ void SettingsManager::setCategoryNotificationEnabled(EventCategory category,
   *target = enabled;
 
   QSettings settings = createSettings();
-  QString key =
-      "categoryNotification_" + HistoryManager::categoryToString(category);
+  QString key = "categoryNotification_" + HistoryManager::categoryToString(category);
   settings.setValue(key, enabled);
   settings.sync();
   if (settings.status() != QSettings::NoError) {
     qDebug() << "Error saving settings:" << settings.status();
   }
-  qDebug() << "Saved category notification:" << key << enabled << "to"
-           << settings.fileName();
+  qDebug() << "Saved category notification:" << key << enabled << "to" << settings.fileName();
 
   emit categoryNotificationEnabledChanged(category, enabled);
 }
 
-bool SettingsManager::notificationsEnabled() const {
-  return m_notificationsEnabled;
-}
+bool SettingsManager::notificationsEnabled() const { return m_notificationsEnabled; }
 
 void SettingsManager::setNotificationsEnabled(bool enabled) {
   if (m_notificationsEnabled == enabled) {
@@ -131,9 +117,7 @@ void SettingsManager::setAutoSavePath(const QString &path) {
   emit autoSavePathChanged(path);
 }
 
-QStringList SettingsManager::recentAutoSavePaths() const {
-  return m_recentAutoSavePaths;
-}
+QStringList SettingsManager::recentAutoSavePaths() const { return m_recentAutoSavePaths; }
 
 void SettingsManager::setRecentAutoSavePaths(const QStringList &paths) {
   if (m_recentAutoSavePaths == paths) {
@@ -158,8 +142,7 @@ void SettingsManager::setAutoSaveMaxSizeMB(int sizeMB) {
 }
 
 QSettings SettingsManager::createSettings() const {
-  QString dataLocation =
-      QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  QString dataLocation = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
   QDir dir(dataLocation);
   if (!dir.exists()) {
     dir.mkpath(".");

@@ -17,8 +17,7 @@
 #include "event.h"
 #include "historymanager.h"
 
-HistoryWidget::HistoryWidget(ClipboardManager *manager, QWidget *parent)
-    : QWidget(parent), m_manager(manager) {
+HistoryWidget::HistoryWidget(ClipboardManager *manager, QWidget *parent) : QWidget(parent), m_manager(manager) {
   setupUi();
   reloadHistory();
 
@@ -34,8 +33,7 @@ HistoryWidget::HistoryWidget(ClipboardManager *manager, QWidget *parent)
             m_historyTable->scrollToBottom();
           });
 
-  connect(m_manager->historyManager(), &QAbstractListModel::modelReset, this,
-          &HistoryWidget::reloadHistory);
+  connect(m_manager->historyManager(), &QAbstractListModel::modelReset, this, &HistoryWidget::reloadHistory);
 }
 
 void HistoryWidget::setupUi() {
@@ -68,8 +66,7 @@ void HistoryWidget::setupUi() {
     action->setData(level);
     m_levelActions.append(action);
     connect(action, &QAction::triggered, this, &HistoryWidget::reloadHistory);
-    connect(action, &QAction::triggered, this,
-            &HistoryWidget::updateFilterButtonText);
+    connect(action, &QAction::triggered, this, &HistoryWidget::updateFilterButtonText);
   };
 
   addLevelAction("Info", (int)EventLevel::Info);
@@ -93,8 +90,7 @@ void HistoryWidget::setupUi() {
     action->setData(category);
     m_categoryActions.append(action);
     connect(action, &QAction::triggered, this, &HistoryWidget::reloadHistory);
-    connect(action, &QAction::triggered, this,
-            &HistoryWidget::updateFilterButtonText);
+    connect(action, &QAction::triggered, this, &HistoryWidget::updateFilterButtonText);
   };
 
   addCategoryAction("Copy", (int)EventCategory::Copy);
@@ -107,30 +103,23 @@ void HistoryWidget::setupUi() {
   updateFilterButtonText();
 
   auto *clearBtn = new QPushButton("Clear History");
-  connect(clearBtn, &QPushButton::clicked, m_manager->historyManager(),
-          &HistoryManager::clear);
+  connect(clearBtn, &QPushButton::clicked, m_manager->historyManager(), &HistoryManager::clear);
   toolbarLayout->addWidget(clearBtn);
 
   layout->addLayout(toolbarLayout);
 
   m_historyTable = new QTableWidget();
   m_historyTable->setColumnCount(4);
-  m_historyTable->setHorizontalHeaderLabels(
-      {"Time", "Level", "Category", "Content"});
-  m_historyTable->horizontalHeader()->setSectionResizeMode(
-      0, QHeaderView::ResizeToContents);
-  m_historyTable->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::ResizeToContents);
-  m_historyTable->horizontalHeader()->setSectionResizeMode(
-      2, QHeaderView::ResizeToContents);
-  m_historyTable->horizontalHeader()->setSectionResizeMode(
-      3, QHeaderView::Stretch);
+  m_historyTable->setHorizontalHeaderLabels({"Time", "Level", "Category", "Content"});
+  m_historyTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+  m_historyTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+  m_historyTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+  m_historyTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
   m_historyTable->setWordWrap(false);
   m_historyTable->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_historyTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
   m_historyTable->setContextMenuPolicy(Qt::CustomContextMenu);
-  connect(m_historyTable, &QWidget::customContextMenuRequested, this,
-          &HistoryWidget::showContextMenu);
+  connect(m_historyTable, &QWidget::customContextMenuRequested, this, &HistoryWidget::showContextMenu);
 
   layout->addWidget(m_historyTable);
 }
@@ -193,8 +182,7 @@ bool HistoryWidget::isEventVisible(const EventItem &item) const {
 void HistoryWidget::addRow(int row, const EventItem &item) {
   m_historyTable->insertRow(row);
 
-  auto *timeItem =
-      new QTableWidgetItem(item.time.toString("yyyy-MM-dd HH:mm:ss"));
+  auto *timeItem = new QTableWidgetItem(item.time.toString("yyyy-MM-dd HH:mm:ss"));
   timeItem->setTextAlignment(Qt::AlignCenter);
   m_historyTable->setItem(row, 0, timeItem);
 
@@ -219,8 +207,7 @@ void HistoryWidget::addRow(int row, const EventItem &item) {
   levelLabel->setToolTip(HistoryManager::levelToString(item.level));
   m_historyTable->setCellWidget(row, 1, levelLabel);
 
-  auto *categoryItem =
-      new QTableWidgetItem(HistoryManager::categoryToString(item.category));
+  auto *categoryItem = new QTableWidgetItem(HistoryManager::categoryToString(item.category));
   categoryItem->setTextAlignment(Qt::AlignCenter);
   m_historyTable->setItem(row, 2, categoryItem);
 

@@ -34,15 +34,13 @@
 static const QString kChecksumFileName = "checksums.txt";
 static const QString kClearRecentPaths = "<Clear Recent Paths>";
 
-AutoSaveWidget::AutoSaveWidget(ClipboardManager* manager, QWidget* parent)
-    : QWidget(parent), m_manager(manager) {
+AutoSaveWidget::AutoSaveWidget(ClipboardManager* manager, QWidget* parent) : QWidget(parent), m_manager(manager) {
   m_networkManager = new QNetworkAccessManager(this);
   setupUi();
   loadSettings();
   loadChecksums();
 
-  connect(m_manager, &ClipboardManager::clipboardChanged, this,
-          &AutoSaveWidget::onClipboardChanged);
+  connect(m_manager, &ClipboardManager::clipboardChanged, this, &AutoSaveWidget::onClipboardChanged);
 }
 
 AutoSaveWidget::~AutoSaveWidget() {}
@@ -101,20 +99,13 @@ void AutoSaveWidget::setupUi() {
   // UI Polish: Push everything to the top
   layout->addStretch();
 
-  connect(m_enableCheckBox, &QCheckBox::stateChanged, this,
-          &AutoSaveWidget::onToggleChanged);
-  connect(m_maxSizeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this,
-          &AutoSaveWidget::onMaxSizeChanged);
-  connect(m_browseButton, &QPushButton::clicked, this,
-          &AutoSaveWidget::onBrowseClicked);
-  connect(m_openDirButton, &QPushButton::clicked, this,
-          &AutoSaveWidget::onOpenDirClicked);
-  connect(m_pathCombo, QOverload<int>::of(&QComboBox::activated), this,
-          &AutoSaveWidget::onPathSelected);
-  connect(m_cleanButton, &QPushButton::clicked, this,
-          &AutoSaveWidget::onCleanClicked);
-  connect(m_rebuildButton, &QPushButton::clicked, this,
-          &AutoSaveWidget::onRebuildClicked);
+  connect(m_enableCheckBox, &QCheckBox::stateChanged, this, &AutoSaveWidget::onToggleChanged);
+  connect(m_maxSizeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &AutoSaveWidget::onMaxSizeChanged);
+  connect(m_browseButton, &QPushButton::clicked, this, &AutoSaveWidget::onBrowseClicked);
+  connect(m_openDirButton, &QPushButton::clicked, this, &AutoSaveWidget::onOpenDirClicked);
+  connect(m_pathCombo, QOverload<int>::of(&QComboBox::activated), this, &AutoSaveWidget::onPathSelected);
+  connect(m_cleanButton, &QPushButton::clicked, this, &AutoSaveWidget::onCleanClicked);
+  connect(m_rebuildButton, &QPushButton::clicked, this, &AutoSaveWidget::onRebuildClicked);
 }
 
 void AutoSaveWidget::onToggleChanged(int state) {
@@ -142,9 +133,7 @@ void AutoSaveWidget::onBrowseClicked() {
   qDebug() << "clicked";
   QString dir = QFileDialog::getExistingDirectory(
       this, "Select Target Directory",
-      m_targetDir.isEmpty()
-          ? QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)
-          : m_targetDir);
+      m_targetDir.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) : m_targetDir);
   if (!dir.isEmpty()) {
     qDebug() << "New target directory selected" << dir;
     m_targetDir = dir;
@@ -219,21 +208,19 @@ void AutoSaveWidget::populatePathCombo() {
 
 void AutoSaveWidget::onCleanClicked() {
   if (m_targetDir.isEmpty()) {
-    m_manager->logAction("Cannot clean checksums: Target directory is not set.",
-                         EventCategory::AutoSaveImage, EventLevel::Warning);
+    m_manager->logAction("Cannot clean checksums: Target directory is not set.", EventCategory::AutoSaveImage,
+                         EventLevel::Warning);
     return;
   }
 
   QFile file(QDir(m_targetDir).filePath(kChecksumFileName));
   if (!file.exists()) {
-    m_manager->logAction("Checksums file not found.",
-                         EventCategory::AutoSaveImage, EventLevel::Info);
+    m_manager->logAction("Checksums file not found.", EventCategory::AutoSaveImage, EventLevel::Info);
     return;
   }
 
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    m_manager->logAction("Failed to open checksums file for reading.",
-                         EventCategory::AutoSaveImage, EventLevel::Error);
+    m_manager->logAction("Failed to open checksums file for reading.", EventCategory::AutoSaveImage, EventLevel::Error);
     return;
   }
 
@@ -261,8 +248,7 @@ void AutoSaveWidget::onCleanClicked() {
   file.close();
 
   if (removedCount > 0) {
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text |
-                  QIODevice::Truncate)) {
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
       QTextStream out(&file);
       for (const QString& line : validLines) {
         out << line << "\n";
@@ -270,17 +256,13 @@ void AutoSaveWidget::onCleanClicked() {
       file.close();
 
       m_seenChecksums = validChecksums;
-      m_manager->logAction(
-          QString("Cleaned checksums. Removed %1 non-existent entries.")
-              .arg(removedCount),
-          EventCategory::AutoSaveImage, EventLevel::Info);
+      m_manager->logAction(QString("Cleaned checksums. Removed %1 non-existent entries.").arg(removedCount),
+                           EventCategory::AutoSaveImage, EventLevel::Info);
     } else {
-      m_manager->logAction("Failed to write cleaned checksums file.",
-                           EventCategory::AutoSaveImage, EventLevel::Error);
+      m_manager->logAction("Failed to write cleaned checksums file.", EventCategory::AutoSaveImage, EventLevel::Error);
     }
   } else {
-    m_manager->logAction("No non-existent entries found in checksums.",
-                         EventCategory::AutoSaveImage, EventLevel::Info);
+    m_manager->logAction("No non-existent entries found in checksums.", EventCategory::AutoSaveImage, EventLevel::Info);
   }
 }
 
@@ -298,19 +280,18 @@ void AutoSaveWidget::onClipboardChanged() {
     if (url.isValid() && (url.scheme() == "http" || url.scheme() == "https")) {
       qDebug() << "Detected HTTP URL" << url.toString();
       QNetworkRequest request(url);
-      request.setHeader(QNetworkRequest::UserAgentHeader,
-                        "Mozilla/5.0 (compatible; ClipboardToolbox/1.0)");
+      request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (compatible; ClipboardToolbox/1.0)");
       QNetworkReply* reply = m_networkManager->get(request);
       connect(reply, &QNetworkReply::finished, this, [this, reply, url]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
           qDebug() << "Network error:" << reply->errorString();
-          m_manager->logAction(
-              "Network error downloading image: " + reply->errorString(),
-              EventCategory::AutoSaveImage, EventLevel::Error);
+          m_manager->logAction("Network error downloading image: " + reply->errorString(), EventCategory::AutoSaveImage,
+                               EventLevel::Error);
           return;
         }
         QByteArray data = reply->readAll();
+        qDebug() << "Downloaded data size:" << data.size() << "byte(s) from" << url.toString();
         QImage img;
         if (img.loadFromData(data)) {
           saveImage(img, url.toString(), url.fileName());
@@ -332,12 +313,11 @@ void AutoSaveWidget::onClipboardChanged() {
         qint64 size = fi.size();
         if (size > m_maxSizeMB * 1024 * 1024) {
           qDebug() << "File size exceeds limit" << size;
-          m_manager->logAction(
-              QString("File size (%1 MB) exceeds limit (%2 MB): %3")
-                  .arg(size / 1024.0 / 1024.0, 0, 'f', 2)
-                  .arg(m_maxSizeMB)
-                  .arg(path),
-              EventCategory::AutoSaveImage, EventLevel::Warning);
+          m_manager->logAction(QString("File size (%1 MB) exceeds limit (%2 MB): %3")
+                                   .arg(size / 1024.0 / 1024.0, 0, 'f', 2)
+                                   .arg(m_maxSizeMB)
+                                   .arg(path),
+                               EventCategory::AutoSaveImage, EventLevel::Warning);
         } else {
           QImage img = reader.read();
           if (!img.isNull()) {
@@ -359,8 +339,7 @@ void AutoSaveWidget::onClipboardChanged() {
   }
 }
 
-void AutoSaveWidget::saveImage(const QImage& image, const QString& source,
-                               const QString& originalName) {
+void AutoSaveWidget::saveImage(const QImage& image, const QString& source, const QString& originalName) {
   qDebug() << source << originalName;
   if (image.isNull()) {
     qDebug() << "Image is null, skipping save";
@@ -369,14 +348,12 @@ void AutoSaveWidget::saveImage(const QImage& image, const QString& source,
 
   if (m_targetDir.isEmpty() || !QDir(m_targetDir).exists()) {
     qDebug() << "Target directory invalid" << m_targetDir;
-    m_manager->logAction(
-        "Target directory invalid or does not exist: " + m_targetDir,
-        EventCategory::AutoSaveImage, EventLevel::Error);
+    m_manager->logAction("Target directory invalid or does not exist: " + m_targetDir, EventCategory::AutoSaveImage,
+                         EventLevel::Error);
     return;
   }
 
-  QString timestamp =
-      QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss_zzz");
+  QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss_zzz");
   QString namePart = originalName.isEmpty() ? "clipboard.jpg" : originalName;
   QString filename = timestamp + "_" + namePart;
   QString fullPath = QDir(m_targetDir).filePath(filename);
@@ -387,41 +364,36 @@ void AutoSaveWidget::saveImage(const QImage& image, const QString& source,
 
   if (!image.save(tempPath)) {
     qDebug() << "Failed to save temporary image to" << tempPath;
-    m_manager->logAction(
-        QString("Failed to write temporary image to: %1").arg(tempPath),
-        EventCategory::AutoSaveImage, EventLevel::Error);
+    m_manager->logAction(QString("Failed to write temporary image to: %1").arg(tempPath), EventCategory::AutoSaveImage,
+                         EventLevel::Error);
     return;
   }
 
   qint64 imageSize = QFileInfo(tempPath).size();
-  qDebug() << "Saved image size:" << imageSize
-           << "bytes, Max MB:" << m_maxSizeMB;
+  qDebug() << "Saved image size:" << imageSize << "bytes, Max MB:" << m_maxSizeMB;
 
   if (imageSize > m_maxSizeMB * 1024 * 1024) {
     qDebug() << "Image file size exceeds limit";
-    m_manager->logAction(
-        QString("Image file size (%1 MB) exceeds limit (%2 MB).")
-            .arg(imageSize / 1024.0 / 1024.0, 0, 'f', 2)
-            .arg(m_maxSizeMB),
-        EventCategory::AutoSaveImage, EventLevel::Warning);
+    m_manager->logAction(QString("Image file size (%1 MB) exceeds limit (%2 MB).")
+                             .arg(imageSize / 1024.0 / 1024.0, 0, 'f', 2)
+                             .arg(m_maxSizeMB),
+                         EventCategory::AutoSaveImage, EventLevel::Warning);
     QFile::remove(tempPath);
     return;
   }
 
   QByteArray checksum = calculateFileChecksum(tempPath);
   if (checksum.isEmpty()) {
-    m_manager->logAction("Failed to calculate checksum for temporary file.",
-                         EventCategory::AutoSaveImage, EventLevel::Error);
+    m_manager->logAction("Failed to calculate checksum for temporary file.", EventCategory::AutoSaveImage,
+                         EventLevel::Error);
     QFile::remove(tempPath);
     return;
   }
 
   if (m_seenChecksums.contains(checksum)) {
-    qDebug() << "Duplicate image detected (checksum match). Skipping."
-             << source;
-    m_manager->logAction(
-        QString("Duplicate image detected for %1. Skipping save.").arg(source),
-        EventCategory::AutoSaveImage, EventLevel::Warning);
+    qDebug() << "Duplicate image detected (checksum match). Skipping." << source;
+    m_manager->logAction(QString("Duplicate image detected for %1. Skipping save.").arg(source),
+                         EventCategory::AutoSaveImage, EventLevel::Warning);
     QFile::remove(tempPath);
     return;
   }
@@ -432,13 +404,11 @@ void AutoSaveWidget::saveImage(const QImage& image, const QString& source,
     qDebug() << "Image saved successfully to" << fullPath;
     m_seenChecksums.insert(checksum);
     appendChecksum(filename, checksum);
-    m_manager->logAction(QString("%1 -> %2").arg(source).arg(fullPath),
-                         EventCategory::AutoSaveImage, EventLevel::Info);
+    m_manager->logAction(QString("%1 -> %2").arg(source).arg(fullPath), EventCategory::AutoSaveImage, EventLevel::Info);
   } else {
     qDebug() << "Failed to rename temp file to" << fullPath;
-    m_manager->logAction(
-        QString("Failed to save image (rename failed) to: %1").arg(fullPath),
-        EventCategory::AutoSaveImage, EventLevel::Error);
+    m_manager->logAction(QString("Failed to save image (rename failed) to: %1").arg(fullPath),
+                         EventCategory::AutoSaveImage, EventLevel::Error);
     tempFile.remove();
   }
 }
@@ -450,8 +420,7 @@ void AutoSaveWidget::loadSettings() {
   m_recentPaths = settings->recentAutoSavePaths();
   m_maxSizeMB = settings->autoSaveMaxSizeMB();
 
-  qDebug() << "Settings loaded. Enabled:" << m_isEnabled
-           << "Path:" << m_targetDir << "MaxMB:" << m_maxSizeMB;
+  qDebug() << "Settings loaded. Enabled:" << m_isEnabled << "Path:" << m_targetDir << "MaxMB:" << m_maxSizeMB;
 
   if (m_isEnabled) {
     m_enableCheckBox->setChecked(true);
@@ -508,16 +477,14 @@ void AutoSaveWidget::loadChecksums() {
       }
     }
   } else {
-    qDebug() << "loadChecksums: Failed to open checksums.txt"
-             << file.errorString();
-    m_manager->logAction("Failed to load checksums: " + file.errorString(),
-                         EventCategory::AutoSaveImage, EventLevel::Error);
+    qDebug() << "loadChecksums: Failed to open checksums.txt" << file.errorString();
+    m_manager->logAction("Failed to load checksums: " + file.errorString(), EventCategory::AutoSaveImage,
+                         EventLevel::Error);
   }
   qDebug() << "Loaded" << m_seenChecksums.size() << "checksums";
 }
 
-void AutoSaveWidget::appendChecksum(const QString& filename,
-                                    const QByteArray& checksum) {
+void AutoSaveWidget::appendChecksum(const QString& filename, const QByteArray& checksum) {
   if (m_targetDir.isEmpty()) return;
 
   QFile file(QDir(m_targetDir).filePath(kChecksumFileName));
@@ -525,17 +492,15 @@ void AutoSaveWidget::appendChecksum(const QString& filename,
     QTextStream out(&file);
     out << filename << ": " << checksum.toHex() << "\n";
   } else {
-    qDebug() << "appendChecksum: Failed to open checksums.txt for appending"
-             << file.errorString();
-    m_manager->logAction("Failed to append checksum: " + file.errorString(),
-                         EventCategory::AutoSaveImage, EventLevel::Error);
+    qDebug() << "appendChecksum: Failed to open checksums.txt for appending" << file.errorString();
+    m_manager->logAction("Failed to append checksum: " + file.errorString(), EventCategory::AutoSaveImage,
+                         EventLevel::Error);
   }
 }
 
 void AutoSaveWidget::onRebuildClicked() {
   if (m_targetDir.isEmpty() || !QDir(m_targetDir).exists()) {
-    m_manager->logAction("Target directory invalid, cannot rebuild.",
-                         EventCategory::AutoSaveImage, EventLevel::Error);
+    m_manager->logAction("Target directory invalid, cannot rebuild.", EventCategory::AutoSaveImage, EventLevel::Error);
     return;
   }
 
@@ -570,9 +535,8 @@ void AutoSaveWidget::onRebuildClicked() {
           m_seenChecksums.insert(checksum);
           out << filename << ": " << checksum.toHex() << "\n";
         } else {
-          m_manager->logAction(
-              "Failed to calculate checksum for file: " + filename,
-              EventCategory::AutoSaveImage, EventLevel::Warning);
+          m_manager->logAction("Failed to calculate checksum for file: " + filename, EventCategory::AutoSaveImage,
+                               EventLevel::Warning);
         }
       }
       processed++;
@@ -580,12 +544,10 @@ void AutoSaveWidget::onRebuildClicked() {
       QCoreApplication::processEvents();
     }
     file.close();
-    m_manager->logAction(
-        QString("Rebuilt checksums for %1 files.").arg(processed),
-        EventCategory::AutoSaveImage, EventLevel::Info);
+    m_manager->logAction(QString("Rebuilt checksums for %1 files.").arg(processed), EventCategory::AutoSaveImage,
+                         EventLevel::Info);
   } else {
-    m_manager->logAction("Failed to open checksums file for writing.",
-                         EventCategory::AutoSaveImage, EventLevel::Error);
+    m_manager->logAction("Failed to open checksums file for writing.", EventCategory::AutoSaveImage, EventLevel::Error);
   }
 
   m_isRebuilding = false;

@@ -19,8 +19,7 @@ class HistoryManager : public QAbstractListModel {
   QVariant data(const QModelIndex &index, int role) const override;
 
   void addEvent(const EventItem &item);
-  void addEntry(const QString &content, EventCategory category,
-                EventLevel level);
+  void addEntry(const QString &content, EventCategory category, EventLevel level);
   void clear();
   const EventItem &eventAt(int index) const;
 
