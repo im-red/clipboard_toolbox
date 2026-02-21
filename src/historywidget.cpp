@@ -47,7 +47,7 @@ void HistoryWidget::setupUi() {
   toolbarLayout->setContentsMargins(4, 4, 4, 4);
   toolbarLayout->setSpacing(3);
 
-  auto *titleLabel = new QLabel("History Log", this);
+  auto *titleLabel = new QLabel("History", this);
   QFont font = titleLabel->font();
   font.setBold(true);
   titleLabel->setFont(font);

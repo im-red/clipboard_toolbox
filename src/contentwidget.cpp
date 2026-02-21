@@ -1,5 +1,7 @@
 #include "contentwidget.h"
 
+#include <QBuffer>
+#include <QByteArray>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
@@ -112,16 +114,38 @@ void ContentWidget::updateContent() {
       addRow("Height", QString::number(image.height()));
       addRow("Depth", QString::number(image.depth()) + " bit");
 
-      qint64 size = image.sizeInBytes();
-      QString sizeStr;
-      if (size >= 1024 * 1024) {
-        sizeStr = QString::number(size / (1024.0 * 1024.0), 'f', 2) + " MB";
-      } else if (size >= 1024) {
-        sizeStr = QString::number(size / 1024.0, 'f', 2) + " KB";
-      } else {
-        sizeStr = QString::number(size) + " B";
-      }
-      addRow("Size", sizeStr);
+      auto formatSize = [](qint64 bytes) -> QString {
+        if (bytes >= 1024 * 1024) {
+          return QString::number(bytes / (1024.0 * 1024.0), 'f', 2) + " MB";
+        } else if (bytes >= 1024) {
+          return QString::number(bytes / 1024.0, 'f', 2) + " KB";
+        } else {
+          return QString::number(bytes) + " B";
+        }
+      };
+
+      addRow("Raw Size", formatSize(image.sizeInBytes()));
+
+      // PNG Size
+      // Note: The size here might differ from the original file size because:
+      // 1. The clipboard image is likely converted to 32-bit ARGB (uncompressed
+      // in memory).
+      // 2. Saving as PNG uses Qt's default compression (zlib level -1, usually
+      // 6).
+      // 3. Original files might be 8-bit indexed or highly optimized.
+      QByteArray pngData;
+      QBuffer pngBuffer(&pngData);
+      pngBuffer.open(QIODevice::WriteOnly);
+      image.save(&pngBuffer, "PNG");  // Uses default compression (level -1)
+      addRow("PNG Size", formatSize(pngData.size()));
+
+      // JPG Size
+      QByteArray jpgData;
+      QBuffer jpgBuffer(&jpgData);
+      jpgBuffer.open(QIODevice::WriteOnly);
+      image.save(&jpgBuffer, "JPG",
+                 75);  // Use standard 75 quality for estimation
+      addRow("JPG Size (75%)", formatSize(jpgData.size()));
 
       QString format = "Bitmap";
       // Use QMetaEnum to convert QImage::Format enum to string

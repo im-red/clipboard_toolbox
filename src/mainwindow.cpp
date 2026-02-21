@@ -91,6 +91,7 @@ void MainWindow::setupUi() {
   connect(exitAction, &QAction::triggered, []() { QCoreApplication::quit(); });
 
   auto *splitter = new QSplitter(Qt::Vertical, this);
+  splitter->setChildrenCollapsible(false);
   setCentralWidget(splitter);
 
   auto *tabs = new QTabWidget();

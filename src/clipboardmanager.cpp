@@ -155,16 +155,17 @@ void ClipboardManager::updateFromClipboard() {
 }
 
 QString ClipboardManager::summarizeMime(const QMimeData *mime) const {
+  QString result;
   if (!mime) {
-    return QString();
+    return result;
   }
   if (mime->hasText()) {
-    return mime->text();
+    result = mime->text();
   }
   if (mime->hasImage()) {
     QImage image = qvariant_cast<QImage>(mime->imageData());
     if (image.isNull()) {
-      return QString();
+      return result;
     }
     QString format = "Bitmap";
     for (const QString &fmt : mime->formats()) {
@@ -173,27 +174,18 @@ QString ClipboardManager::summarizeMime(const QMimeData *mime) const {
         break;
       }
     }
-
-    qint64 size = image.sizeInBytes();
-    QString sizeStr;
-    if (size >= 1024 * 1024) {
-      sizeStr = QString::number(size / (1024.0 * 1024.0), 'f', 2) + " MB";
-    } else if (size >= 1024) {
-      sizeStr = QString::number(size / 1024.0, 'f', 2) + " KB";
-    } else {
-      sizeStr = QString::number(size) + " B";
+    if (result != "") {
+      result += " ";
     }
-
-    return QString("%1x%2 %3 %4")
-        .arg(image.width())
-        .arg(image.height())
-        .arg(format)
-        .arg(sizeStr);
+    result += QString("<Image %1x%2 %3>")
+                  .arg(image.width())
+                  .arg(image.height())
+                  .arg(format);
   }
-  if (!mime->formats().isEmpty()) {
-    return QString("Clipboard data: %1").arg(mime->formats().first());
+  if (result == "" && !mime->formats().isEmpty()) {
+    result = QString("Clipboard data: %1").arg(mime->formats().first());
   }
-  return QString();
+  return result;
 }
 
 QString ClipboardManager::normalizeLocalPath(const QString &path) const {

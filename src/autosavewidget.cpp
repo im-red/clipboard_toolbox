@@ -367,19 +367,6 @@ void AutoSaveWidget::saveImage(const QImage& image, const QString& source,
     return;
   }
 
-  qint64 imageSize = image.sizeInBytes();
-  qDebug() << "Saving image, size:" << imageSize
-           << "bytes, Max MB:" << m_maxSizeMB;
-
-  if (imageSize > m_maxSizeMB * 1024 * 1024) {
-    qDebug() << "Image size exceeds limit";
-    m_manager->logAction(QString("Image size (%1 MB) exceeds limit (%2 MB).")
-                             .arg(imageSize / 1024.0 / 1024.0, 0, 'f', 2)
-                             .arg(m_maxSizeMB),
-                         EventCategory::AutoSaveImage, EventLevel::Warning);
-    return;
-  }
-
   if (m_targetDir.isEmpty() || !QDir(m_targetDir).exists()) {
     qDebug() << "Target directory invalid" << m_targetDir;
     m_manager->logAction(
@@ -403,6 +390,21 @@ void AutoSaveWidget::saveImage(const QImage& image, const QString& source,
     m_manager->logAction(
         QString("Failed to write temporary image to: %1").arg(tempPath),
         EventCategory::AutoSaveImage, EventLevel::Error);
+    return;
+  }
+
+  qint64 imageSize = QFileInfo(tempPath).size();
+  qDebug() << "Saved image size:" << imageSize
+           << "bytes, Max MB:" << m_maxSizeMB;
+
+  if (imageSize > m_maxSizeMB * 1024 * 1024) {
+    qDebug() << "Image file size exceeds limit";
+    m_manager->logAction(
+        QString("Image file size (%1 MB) exceeds limit (%2 MB).")
+            .arg(imageSize / 1024.0 / 1024.0, 0, 'f', 2)
+            .arg(m_maxSizeMB),
+        EventCategory::AutoSaveImage, EventLevel::Warning);
+    QFile::remove(tempPath);
     return;
   }
 
