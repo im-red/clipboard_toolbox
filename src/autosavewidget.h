@@ -13,6 +13,7 @@ class QSpinBox;
 class QLabel;
 class QNetworkAccessManager;
 class QProgressBar;
+class QFile;
 
 class AutoSaveWidget : public QWidget {
   Q_OBJECT
@@ -33,12 +34,17 @@ class AutoSaveWidget : public QWidget {
 
  private:
   void setupUi();
-  void saveImage(const QImage &image, const QString &source, const QString &originalName = QString());
+  bool saveImage(QFile &file, const QString &originalName = QString(), const QString &source = QString());
+  bool saveImage(const QImage &image);
   void loadSettings();
   void saveSettings();
   void loadChecksums();
   void appendChecksum(const QString &filename, const QByteArray &checksum);
-  QByteArray calculateFileChecksum(const QString &filePath);
+  QByteArray calculateChecksum(QIODevice *device);
+  bool processTextContent();
+  bool processImageContent();
+  bool handleRemoteUrl(const QUrl &url, const QImage &fallbackImage = QImage());
+  bool handleLocalPath(const QString &path);
   void updateRecentPaths(const QString &path);  // Helper
   void populatePathCombo();                     // Helper
 

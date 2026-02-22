@@ -62,10 +62,8 @@ void ClipboardManager::saveImageToFile(const QString &path) {
 
   if (success) {
     qDebug() << "Image saved successfully";
-    logAction("Image saved to " + localPath, EventCategory::AutoSaveImage, EventLevel::Info);
   } else {
     qDebug() << "Failed to save image. Image null:" << image.isNull() << "Path empty:" << localPath.isEmpty();
-    logAction("Failed to save image to " + localPath, EventCategory::AutoSaveImage, EventLevel::Error);
   }
 }
 
@@ -154,17 +152,10 @@ QString ClipboardManager::summarizeMime(const QMimeData *mime) const {
     if (image.isNull()) {
       return result;
     }
-    QString format = "Bitmap";
-    for (const QString &fmt : mime->formats()) {
-      if (fmt.startsWith("image/") && !fmt.contains("x-qt-")) {
-        format = fmt.mid(6).toUpper();
-        break;
-      }
-    }
     if (result != "") {
       result += " ";
     }
-    result += QString("<Image %1x%2 %3>").arg(image.width()).arg(image.height()).arg(format);
+    result += QString("<Image %1x%2>").arg(image.width()).arg(image.height());
   }
   if (result == "" && !mime->formats().isEmpty()) {
     result = QString("Clipboard data: %1").arg(mime->formats().first());

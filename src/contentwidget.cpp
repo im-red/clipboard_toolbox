@@ -97,11 +97,15 @@ void ContentWidget::updateContent() {
       m_imageInfoTable->setRowCount(0);
       m_imageInfoTable->setVisible(true);
 
-      auto addRow = [this](const QString &key, const QString &value) {
+      auto addRow = [this](const QString &key, const QString &value, const QString &tooltip = QString()) {
         int row = m_imageInfoTable->rowCount();
         m_imageInfoTable->insertRow(row);
         m_imageInfoTable->setItem(row, 0, new QTableWidgetItem(key));
-        m_imageInfoTable->setItem(row, 1, new QTableWidgetItem(value));
+        auto *valueItem = new QTableWidgetItem(value);
+        if (!tooltip.isEmpty()) {
+          valueItem->setToolTip(tooltip);
+        }
+        m_imageInfoTable->setItem(row, 1, valueItem);
       };
 
       addRow("Width", QString::number(image.width()));
@@ -118,7 +122,7 @@ void ContentWidget::updateContent() {
         }
       };
 
-      addRow("Raw Size", formatSize(image.sizeInBytes()));
+      addRow("Raw Size", formatSize(image.sizeInBytes()), QString::number(image.sizeInBytes()) + " bytes");
 
       // PNG Size
       // Note: The size here might differ from the original file size because:
@@ -131,15 +135,14 @@ void ContentWidget::updateContent() {
       QBuffer pngBuffer(&pngData);
       pngBuffer.open(QIODevice::WriteOnly);
       image.save(&pngBuffer, "PNG");  // Uses default compression (level -1)
-      addRow("PNG Size", formatSize(pngData.size()));
+      addRow("PNG Size", formatSize(pngData.size()), QString::number(pngData.size()) + " bytes");
 
       // JPG Size
       QByteArray jpgData;
       QBuffer jpgBuffer(&jpgData);
       jpgBuffer.open(QIODevice::WriteOnly);
-      image.save(&jpgBuffer, "JPG",
-                 75);  // Use standard 75 quality for estimation
-      addRow("JPG Size (75%)", formatSize(jpgData.size()));
+      image.save(&jpgBuffer, "JPG");
+      addRow("JPG Size", formatSize(jpgData.size()), QString::number(jpgData.size()) + " bytes");
 
       QString format = "Bitmap";
       // Use QMetaEnum to convert QImage::Format enum to string

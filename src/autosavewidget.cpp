@@ -24,11 +24,11 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QStandardPaths>
+#include <QTemporaryFile>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include "clipboardmanager.h"
-#include "historymanager.h"
 #include "settingsmanager.h"
 
 static const QString kChecksumFileName = "checksums.txt";
@@ -270,146 +270,204 @@ void AutoSaveWidget::onClipboardChanged() {
   if (!m_isEnabled || m_isRebuilding) return;
   qDebug() << "processing";
 
-  bool savedFromText = false;
-  if (m_manager->hasText()) {
-    // Check if text is a file path to an image
-    QString text = m_manager->latestText();
-    qDebug() << "Checking text content" << text;
-    QUrl url(text);
-
-    if (url.isValid() && (url.scheme() == "http" || url.scheme() == "https")) {
-      qDebug() << "Detected HTTP URL" << url.toString();
-      QNetworkRequest request(url);
-      request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (compatible; ClipboardToolbox/1.0)");
-      QNetworkReply* reply = m_networkManager->get(request);
-      connect(reply, &QNetworkReply::finished, this, [this, reply, url]() {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-          qDebug() << "Network error:" << reply->errorString();
-          m_manager->logAction("Network error downloading image: " + reply->errorString(), EventCategory::AutoSaveImage,
-                               EventLevel::Error);
-          return;
-        }
-        QByteArray data = reply->readAll();
-        qDebug() << "Downloaded data size:" << data.size() << "byte(s) from" << url.toString();
-        QImage img;
-        if (img.loadFromData(data)) {
-          saveImage(img, url.toString(), url.fileName());
-        } else {
-          qDebug() << "Downloaded data is not a valid image";
-        }
-      });
-      return;
-    }
-
-    QString path = url.isLocalFile() ? url.toLocalFile() : text;
-
-    QFileInfo fi(path);
-    if (fi.exists() && fi.isFile()) {
-      qDebug() << "Text identifies a file" << path;
-      QImageReader reader(path);
-      if (reader.canRead()) {
-        savedFromText = true;
-        qint64 size = fi.size();
-        if (size > m_maxSizeMB * 1024 * 1024) {
-          qDebug() << "File size exceeds limit" << size;
-          m_manager->logAction(QString("File size (%1 MB) exceeds limit (%2 MB): %3")
-                                   .arg(size / 1024.0 / 1024.0, 0, 'f', 2)
-                                   .arg(m_maxSizeMB)
-                                   .arg(path),
-                               EventCategory::AutoSaveImage, EventLevel::Warning);
-        } else {
-          QImage img = reader.read();
-          if (!img.isNull()) {
-            qDebug() << "Image loaded from file" << path;
-            saveImage(img, path, fi.fileName());
-          } else {
-            qDebug() << "Failed to load image from file" << path;
-          }
-        }
-      } else {
-        qDebug() << "QImageReader cannot read file" << path;
-      }
-    }
-  }
-
-  if (!savedFromText && m_manager->hasImage()) {
-    qDebug() << "Saving from clipboard image data";
-    saveImage(m_manager->latestImage(), "Clipboard");
-  }
-}
-
-void AutoSaveWidget::saveImage(const QImage& image, const QString& source, const QString& originalName) {
-  qDebug() << source << originalName;
-  if (image.isNull()) {
-    qDebug() << "Image is null, skipping save";
+  bool savedFromText = processTextContent();
+  if (savedFromText) {
     return;
   }
+  bool savedFromImage = processImageContent();
+  if (savedFromImage) {
+    return;
+  }
+  qDebug() << "No valid content found in clipboard";
+}
+
+bool AutoSaveWidget::processTextContent() {
+  if (!m_manager->hasText()) {
+    return false;
+  }
+
+  // Check if text is a file path to an image
+  QString text = m_manager->latestText();
+  qDebug() << "Checking text content" << text;
+  QUrl url(text);
+
+  bool handled = handleRemoteUrl(url, m_manager->latestImage());
+  if (handled) {
+    return true;
+  }
+
+  QString path = url.isLocalFile() ? url.toLocalFile() : text;
+  return handleLocalPath(path);
+}
+
+bool AutoSaveWidget::processImageContent() {
+  if (!m_manager->hasImage()) {
+    return false;
+  }
+
+  QImage image = m_manager->latestImage();
+  qDebug() << "Checking image content" << image;
+  return saveImage(image);
+}
+
+bool AutoSaveWidget::handleRemoteUrl(const QUrl& url, const QImage& fallbackImage) {
+  if (!(url.isValid() && (url.scheme() == "http" || url.scheme() == "https"))) {
+    return false;
+  }
+
+  qDebug() << "Detected HTTP URL" << url.toString();
+  QNetworkRequest request(url);
+  request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (compatible; ClipboardToolbox/1.0)");
+  QNetworkReply* reply = m_networkManager->get(request);
+  connect(reply, &QNetworkReply::finished, this, [this, reply, url, fallbackImage]() {
+    reply->deleteLater();
+    if (reply->error() != QNetworkReply::NoError) {
+      qDebug() << "Network error:" << reply->errorString();
+      m_manager->logAction("Network error downloading image: " + reply->errorString(), EventCategory::AutoSaveImage,
+                           EventLevel::Error);
+    } else {
+      QByteArray data = reply->readAll();
+      qDebug() << "Downloaded data size:" << data.size() << "byte(s) from" << url.toString();
+
+      if (!QImage::fromData(data).isNull()) {
+        // Save original data to temp file to avoid re-encoding
+        QTemporaryFile tempFile;
+        if (tempFile.open()) {
+          tempFile.write(data);
+          tempFile.close();
+          saveImage(tempFile, url.fileName(), url.toString());
+          return;
+        } else {
+          qDebug() << "Failed to create temp file for URL image";
+        }
+      } else {
+        qDebug() << "Downloaded data is not a valid image";
+      }
+    }
+
+    qDebug() << "Using fallback image from clipboard";
+    saveImage(fallbackImage);
+  });
+  return true;  // Assume handled asynchronously
+}
+
+bool AutoSaveWidget::handleLocalPath(const QString& path) {
+  QFileInfo fi(path);
+  if (fi.exists() && fi.isFile()) {
+    qDebug() << "Text identifies a file" << path;
+    QImageReader reader(path);
+    if (reader.canRead()) {
+      qint64 size = fi.size();
+      if (size > m_maxSizeMB * 1024 * 1024) {
+        qDebug() << "File size exceeds limit" << size;
+        m_manager->logAction(QString("File size (%1 MB) exceeds limit (%2 MB): %3")
+                                 .arg(size / 1024.0 / 1024.0, 0, 'f', 2)
+                                 .arg(m_maxSizeMB)
+                                 .arg(path),
+                             EventCategory::AutoSaveImage, EventLevel::Warning);
+        return true;  // Found valid image file but skipped due to size
+      } else {
+        QImage img = reader.read();
+        if (!img.isNull()) {
+          qDebug() << "Image loaded from file" << path;
+          QFile file(path);
+          return saveImage(file, fi.fileName(), path);
+        } else {
+          qDebug() << "Failed to load image from file" << path;
+        }
+      }
+    } else {
+      qDebug() << "QImageReader cannot read file" << path;
+    }
+  }
+  return false;
+}
+
+bool AutoSaveWidget::saveImage(QFile& file, const QString& originalName, const QString& source) {
+  qDebug() << "Processing save for:" << source << originalName;
 
   if (m_targetDir.isEmpty() || !QDir(m_targetDir).exists()) {
     qDebug() << "Target directory invalid" << m_targetDir;
     m_manager->logAction("Target directory invalid or does not exist: " + m_targetDir, EventCategory::AutoSaveImage,
                          EventLevel::Error);
-    return;
+    return false;
   }
 
-  QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss_zzz");
-  QString namePart = originalName.isEmpty() ? "clipboard.jpg" : originalName;
-  QString filename = timestamp + "_" + namePart;
-  QString fullPath = QDir(m_targetDir).filePath(filename);
+  qint64 imageSize = file.size();
 
-  // Use a temporary file to calculate checksum of the real file data
-  QString tempFilename = "temp_" + timestamp + "_" + namePart;
-  QString tempPath = QDir(m_targetDir).filePath(tempFilename);
-
-  if (!image.save(tempPath)) {
-    qDebug() << "Failed to save temporary image to" << tempPath;
-    m_manager->logAction(QString("Failed to write temporary image to: %1").arg(tempPath), EventCategory::AutoSaveImage,
-                         EventLevel::Error);
-    return;
-  }
-
-  qint64 imageSize = QFileInfo(tempPath).size();
-  qDebug() << "Saved image size:" << imageSize << "bytes, Max MB:" << m_maxSizeMB;
-
+  // Check size limit
   if (imageSize > m_maxSizeMB * 1024 * 1024) {
     qDebug() << "Image file size exceeds limit";
     m_manager->logAction(QString("Image file size (%1 MB) exceeds limit (%2 MB).")
                              .arg(imageSize / 1024.0 / 1024.0, 0, 'f', 2)
                              .arg(m_maxSizeMB),
                          EventCategory::AutoSaveImage, EventLevel::Warning);
-    QFile::remove(tempPath);
-    return;
+    return false;
   }
 
-  QByteArray checksum = calculateFileChecksum(tempPath);
-  if (checksum.isEmpty()) {
-    m_manager->logAction("Failed to calculate checksum for temporary file.", EventCategory::AutoSaveImage,
+  // Check checksum
+  if (!file.open(QIODevice::ReadOnly)) {
+    qDebug() << "Failed to open source file for checksum:" << file.fileName();
+    m_manager->logAction("Failed to open source file for checksum: " + file.fileName(), EventCategory::AutoSaveImage,
                          EventLevel::Error);
-    QFile::remove(tempPath);
-    return;
+    return false;
+  }
+  QByteArray checksum = calculateChecksum(&file);
+  file.close();
+
+  if (checksum.isEmpty()) {
+    qDebug() << "Failed to calculate checksum for source file:" << file.fileName();
+    m_manager->logAction("Failed to calculate checksum for source file: " + file.fileName(),
+                         EventCategory::AutoSaveImage, EventLevel::Error);
+    return false;
   }
 
   if (m_seenChecksums.contains(checksum)) {
     qDebug() << "Duplicate image detected (checksum match). Skipping." << source;
     m_manager->logAction(QString("Duplicate image detected for %1. Skipping save.").arg(source),
                          EventCategory::AutoSaveImage, EventLevel::Warning);
-    QFile::remove(tempPath);
-    return;
+    return false;
   }
 
-  // Rename temp file to final destination
-  QFile tempFile(tempPath);
-  if (tempFile.rename(fullPath)) {
-    qDebug() << "Image saved successfully to" << fullPath;
+  // Generate Destination Filename
+  QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss_zzz");
+  QString namePart = originalName.isEmpty() ? "clipboard.jpg" : originalName;
+  QString filename = timestamp + "_" + namePart;
+  QString fullPath = QDir(m_targetDir).filePath(filename);
+
+  // Copy file
+  if (file.copy(fullPath)) {
+    qDebug() << "Image copied successfully to" << fullPath;
     m_seenChecksums.insert(checksum);
     appendChecksum(filename, checksum);
     m_manager->logAction(QString("%1 -> %2").arg(source).arg(fullPath), EventCategory::AutoSaveImage, EventLevel::Info);
+    return true;
   } else {
-    qDebug() << "Failed to rename temp file to" << fullPath;
-    m_manager->logAction(QString("Failed to save image (rename failed) to: %1").arg(fullPath),
-                         EventCategory::AutoSaveImage, EventLevel::Error);
-    tempFile.remove();
+    qDebug() << "Failed to copy image to" << fullPath;
+    m_manager->logAction(QString("Failed to copy image to: %1").arg(fullPath), EventCategory::AutoSaveImage,
+                         EventLevel::Error);
+    return false;
+  }
+}
+
+bool AutoSaveWidget::saveImage(const QImage& image) {
+  if (image.isNull()) {
+    qDebug() << "Failed to load image from clipboard";
+    m_manager->logAction("Failed to load image from clipboard", EventCategory::AutoSaveImage, EventLevel::Error);
+    return false;
+  }
+
+  // Save to temp file first to avoid re-encoding
+  QTemporaryFile tempFile;
+  if (tempFile.open()) {
+    image.save(&tempFile, "JPG");
+    tempFile.close();
+    return saveImage(tempFile, "clipboard.jpg", "<Clipboard Image>");
+  } else {
+    qDebug() << "Failed to create temp file for clipboard image";
+    m_manager->logAction("Failed to create temp file for clipboard image", EventCategory::AutoSaveImage,
+                         EventLevel::Error);
+    return false;
   }
 }
 
@@ -447,15 +505,14 @@ void AutoSaveWidget::saveSettings() {
   settings->setAutoSaveMaxSizeMB(m_maxSizeMB);
 }
 
-QByteArray AutoSaveWidget::calculateFileChecksum(const QString& filePath) {
-  QFile file(filePath);
-  if (!file.open(QIODevice::ReadOnly)) {
-    qDebug() << "calculateFileChecksum: Failed to open file" << filePath;
+QByteArray AutoSaveWidget::calculateChecksum(QIODevice* device) {
+  if (!device || !device->isOpen() || !device->isReadable()) {
+    qDebug() << "calculateChecksum: Invalid or closed device";
     return QByteArray();
   }
 
   QCryptographicHash hash(QCryptographicHash::Md5);
-  if (hash.addData(&file)) {
+  if (hash.addData(device)) {
     return hash.result();
   }
   return QByteArray();
@@ -479,7 +536,7 @@ void AutoSaveWidget::loadChecksums() {
   } else {
     qDebug() << "loadChecksums: Failed to open checksums.txt" << file.errorString();
     m_manager->logAction("Failed to load checksums: " + file.errorString(), EventCategory::AutoSaveImage,
-                         EventLevel::Error);
+                         EventLevel::Warning);
   }
   qDebug() << "Loaded" << m_seenChecksums.size() << "checksums";
 }
@@ -530,13 +587,17 @@ void AutoSaveWidget::onRebuildClicked() {
 
       QImageReader reader(dir.filePath(filename));
       if (reader.canRead()) {
-        QByteArray checksum = calculateFileChecksum(dir.filePath(filename));
-        if (!checksum.isEmpty()) {
-          m_seenChecksums.insert(checksum);
-          out << filename << ": " << checksum.toHex() << "\n";
-        } else {
-          m_manager->logAction("Failed to calculate checksum for file: " + filename, EventCategory::AutoSaveImage,
-                               EventLevel::Warning);
+        QFile file(dir.filePath(filename));
+        if (file.open(QIODevice::ReadOnly)) {
+          QByteArray checksum = calculateChecksum(&file);
+          file.close();
+          if (!checksum.isEmpty()) {
+            m_seenChecksums.insert(checksum);
+            out << filename << ": " << checksum.toHex() << "\n";
+          } else {
+            m_manager->logAction("Failed to calculate checksum for file: " + filename, EventCategory::AutoSaveImage,
+                                 EventLevel::Warning);
+          }
         }
       }
       processed++;
