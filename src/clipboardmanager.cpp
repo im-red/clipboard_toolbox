@@ -109,8 +109,8 @@ void ClipboardManager::updateFromClipboard() {
   const QMimeData *mime = m_clipboard->mimeData();
   bool newHasImage = mime && mime->hasImage();
   bool newHasText = mime && mime->hasText();
-  QString newText = newHasText ? m_clipboard->text() : QString();
-  QImage newImage = newHasImage ? m_clipboard->image() : QImage();
+  QString newText = newHasText ? mime->text() : QString();
+  QImage newImage = newHasImage ? qvariant_cast<QImage>(mime->imageData()) : QImage();
   bool changed = false;
 
   qDebug() << "newText:" << newText << "newImage:" << newImage;

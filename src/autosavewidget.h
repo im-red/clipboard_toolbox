@@ -14,6 +14,11 @@ class QLabel;
 class QNetworkAccessManager;
 class QProgressBar;
 class QFile;
+class QScrollArea;
+class QVBoxLayout;
+class QListView;
+class DownloadProgressFloatingWindow;
+class DownloadProgressModel;
 
 class AutoSaveWidget : public QWidget {
   Q_OBJECT
@@ -31,6 +36,7 @@ class AutoSaveWidget : public QWidget {
   void onCleanClicked();
   void onRebuildClicked();
   void onClipboardChanged();
+  void onClearFinishedClicked();  // Added
 
  private:
   void setupUi();
@@ -59,6 +65,12 @@ class AutoSaveWidget : public QWidget {
   QLabel *m_maxSizeLabel = nullptr;
   QSpinBox *m_maxSizeSpinBox = nullptr;
   QProgressBar *m_progressBar = nullptr;
+
+  // New UI elements for multiple downloads
+  QListView *m_downloadListView = nullptr;
+  DownloadProgressModel *m_downloadModel = nullptr;
+  QPushButton *m_clearFinishedButton = nullptr;
+  DownloadProgressFloatingWindow *m_downloadProgressWidget = nullptr;
 
   QString m_targetDir;
   QStringList m_recentPaths;  // Added

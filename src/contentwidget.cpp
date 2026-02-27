@@ -131,11 +131,13 @@ void ContentWidget::updateContent() {
       // 2. Saving as PNG uses Qt's default compression (zlib level -1, usually
       // 6).
       // 3. Original files might be 8-bit indexed or highly optimized.
-      QByteArray pngData;
-      QBuffer pngBuffer(&pngData);
-      pngBuffer.open(QIODevice::WriteOnly);
-      image.save(&pngBuffer, "PNG");  // Uses default compression (level -1)
-      addRow("PNG Size", formatSize(pngData.size()), QString::number(pngData.size()) + " bytes");
+      if (image.sizeInBytes() < 100 * 1024 * 1024) {
+        QByteArray pngData;
+        QBuffer pngBuffer(&pngData);
+        pngBuffer.open(QIODevice::WriteOnly);
+        image.save(&pngBuffer, "PNG");  // Uses default compression (level -1)
+        addRow("PNG Size", formatSize(pngData.size()), QString::number(pngData.size()) + " bytes");
+      }
 
       // JPG Size
       QByteArray jpgData;
