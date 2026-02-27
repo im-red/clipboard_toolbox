@@ -15,4 +15,5 @@ class DownloadProgressFloatingWindow : public QDialog {
 
  private:
   QListView *m_listView;
+  class QLabel *m_emptyLabel;
 };

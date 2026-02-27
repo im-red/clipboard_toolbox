@@ -2,10 +2,12 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QLabel>
 #include <QPainter>
 #include <QScreen>
 #include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "downloadprogressmodel.h"
@@ -121,6 +123,11 @@ DownloadProgressFloatingWindow::DownloadProgressFloatingWindow(QWidget *parent) 
   m_listView = new QListView(this);
   m_listView->setItemDelegate(new FloatingDownloadDelegate(this));
   layout->addWidget(m_listView);
+
+  m_emptyLabel = new QLabel("No active downloads", this);
+  m_emptyLabel->setAlignment(Qt::AlignCenter);
+  layout->addWidget(m_emptyLabel);
+  m_emptyLabel->hide();
 }
 
 DownloadProgressFloatingWindow::~DownloadProgressFloatingWindow() {}
@@ -130,11 +137,28 @@ void DownloadProgressFloatingWindow::setModel(QAbstractItemModel *model) {
   proxy->setSourceModel(model);
   m_listView->setModel(proxy);
 
+  auto updateView = [this, proxy]() {
+    if (proxy->rowCount() == 0) {
+      m_listView->hide();
+      m_emptyLabel->show();
+    } else {
+      m_listView->show();
+      m_emptyLabel->hide();
+    }
+  };
+
+  // Initial update
+  updateView();
+
   // Auto-hide if empty?
-  connect(proxy, &QAbstractItemModel::rowsInserted, this, [this, proxy]() {
+  connect(proxy, &QAbstractItemModel::rowsInserted, this, [this, proxy, updateView]() {
+    updateView();
     if (proxy->rowCount() > 0 && !isVisible()) show();
   });
-  connect(proxy, &QAbstractItemModel::rowsRemoved, this, [this, proxy]() {
-    if (proxy->rowCount() == 0 && isVisible()) hide();
+  connect(proxy, &QAbstractItemModel::rowsRemoved, this, [this, proxy, updateView]() {
+    updateView();
+    QTimer::singleShot(2000, this, [this, proxy]() {
+      if (proxy->rowCount() == 0 && isVisible()) hide();
+    });
   });
 }
