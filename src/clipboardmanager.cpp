@@ -15,6 +15,7 @@
 #include <QStandardPaths>
 #include <QUrl>
 
+#include "notificationmanager.h"
 #include "settingsmanager.h"
 
 ClipboardManager::ClipboardManager(QObject *parent)
@@ -172,24 +173,6 @@ QString ClipboardManager::normalizeLocalPath(const QString &path) const {
 }
 
 void ClipboardManager::showNotification(const QString &title, const QString &message, EventLevel level) {
-  if (m_trayIcon && m_trayIcon->isVisible()) {
-    QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information;
-    switch (level) {
-      case EventLevel::Info:
-        icon = QSystemTrayIcon::Information;
-        break;
-      case EventLevel::Warning:
-        icon = QSystemTrayIcon::Warning;
-        break;
-      case EventLevel::Error:
-        icon = QSystemTrayIcon::Critical;
-        break;
-      default:
-        icon = QSystemTrayIcon::Information;
-        break;
-    }
-
-    qDebug() << "Showing notification:" << title << "-" << message;
-    m_trayIcon->showMessage(title, message, icon, 3000);
-  }
+  qDebug() << "Showing notification:" << title << "-" << message;
+  NotificationManager::instance()->showNotification(title, message, level);
 }
