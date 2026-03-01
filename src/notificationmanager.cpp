@@ -88,28 +88,31 @@ NotificationWidget::NotificationWidget(Notification *notification, QWidget *pare
     updateStyle();
   });
 
-  m_opacityAnimation = new QPropertyAnimation(this, "windowOpacity", this);
+  m_opacityEffect = new QGraphicsOpacityEffect(this);
+  m_opacityEffect->setOpacity(0.0);
+  setGraphicsEffect(m_opacityEffect);
+
+  m_opacityAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
   m_opacityAnimation->setDuration(200);
   m_opacityAnimation->setStartValue(0.0);
   m_opacityAnimation->setEndValue(1.0);
-  m_opacityAnimation->start();
+  m_opacityAnimation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 NotificationWidget::~NotificationWidget() {}
 
-void NotificationWidget::slideOut() {
-  m_slideAnimation = new QPropertyAnimation(this, "geometry", this);
-  m_slideAnimation->setDuration(200);
+void NotificationWidget::fadeOut() {
+  if (m_fadingOut) return;
+  m_fadingOut = true;
 
-  QRect currentGeo = geometry();
-  QRect targetGeo = QRect(currentGeo.right(), currentGeo.top(), currentGeo.width(), currentGeo.height());
+  m_opacityAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
+  m_opacityAnimation->setDuration(200);
+  m_opacityAnimation->setStartValue(1.0);
+  m_opacityAnimation->setEndValue(0.0);
 
-  m_slideAnimation->setStartValue(currentGeo);
-  m_slideAnimation->setEndValue(targetGeo);
+  connect(m_opacityAnimation, &QPropertyAnimation::finished, this, [this]() { emit fadeOutFinished(); });
 
-  connect(m_slideAnimation, &QPropertyAnimation::finished, this, [this]() { emit slideOutFinished(); });
-
-  m_slideAnimation->start(QAbstractAnimation::DeleteWhenStopped);
+  m_opacityAnimation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void NotificationWidget::setupUi() {
@@ -219,13 +222,13 @@ NotificationManager::~NotificationManager() {
 Notification *NotificationManager::showNotification(const QString &title, const QString &message, EventLevel level) {
   while (m_notifications.size() >= MAX_NOTIFICATIONS) {
     auto *oldest = m_notifications.last();
-    oldest->notification()->expireNow();
+    removeNotification(oldest);
   }
 
   auto *notification = new Notification(title, message, level, this);
   auto *widget = new NotificationWidget(notification, m_container);
 
-  connect(notification, &Notification::expired, this, [this, widget]() { startSlideOut(widget); });
+  connect(notification, &Notification::expired, this, [this, widget]() { startFadeOut(widget); });
 
   m_notifications.prepend(widget);
   m_layout->insertWidget(1, widget);
@@ -243,7 +246,7 @@ Notification *NotificationManager::showProgressNotification(const QString &title
                                                             EventLevel level) {
   while (m_notifications.size() >= MAX_NOTIFICATIONS) {
     auto *oldest = m_notifications.last();
-    oldest->notification()->expireNow();
+    removeNotification(oldest);
   }
 
   auto *notification = new Notification(title, message, level, this);
@@ -251,7 +254,7 @@ Notification *NotificationManager::showProgressNotification(const QString &title
 
   auto *widget = new NotificationWidget(notification, m_container);
 
-  connect(notification, &Notification::expired, this, [this, widget]() { startSlideOut(widget); });
+  connect(notification, &Notification::expired, this, [this, widget]() { startFadeOut(widget); });
 
   m_notifications.prepend(widget);
   m_layout->insertWidget(1, widget);
@@ -299,17 +302,17 @@ void NotificationManager::repositionContainerAnimated(int removedHeight) {
   animation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
-void NotificationManager::startSlideOut(NotificationWidget *widget) {
+void NotificationManager::startFadeOut(NotificationWidget *widget) {
   if (!widget || !m_notifications.contains(widget)) return;
 
   int removedHeight = widget->notificationHeight();
 
-  connect(widget, &NotificationWidget::slideOutFinished, this, [this, widget, removedHeight]() {
+  connect(widget, &NotificationWidget::fadeOutFinished, this, [this, widget, removedHeight]() {
     removeNotification(widget);
     repositionContainerAnimated(removedHeight);
   });
 
-  widget->slideOut();
+  widget->fadeOut();
 }
 
 void NotificationManager::removeNotification(NotificationWidget *widget) {

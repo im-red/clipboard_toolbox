@@ -40,6 +40,7 @@
 #include "downloadprogressmodel.h"
 #include "notificationmanager.h"
 #include "settingsmanager.h"
+#include "utils.h"
 
 // Delegate for rendering download items
 class DownloadProgressDelegate : public QAbstractItemDelegate {
@@ -73,7 +74,7 @@ class DownloadProgressDelegate : public QAbstractItemDelegate {
 
     int spacing = 10;
     int nameWidth = 100;
-    int statusWidth = 100;
+    int statusWidth = 150;
 
     // Calculate rects
     QRect rect = r;
@@ -593,7 +594,8 @@ bool AutoSaveWidget::saveImage(QFile& file, const QString& originalName, const Q
     qDebug() << "Image copied successfully to" << fullPath;
     m_seenChecksums.insert(checksum);
     appendChecksum(filename, checksum);
-    m_manager->logAction(QString("%1 -> %2").arg(source).arg(fullPath), EventCategory::AutoSaveImage, EventLevel::Info);
+    m_manager->logAction(QString("%1 -> %2 (%3)").arg(source, fullPath, utils::formatSize(imageSize)),
+                         EventCategory::AutoSaveImage, EventLevel::Info);
     return true;
   } else {
     qDebug() << "Failed to copy image to" << fullPath;
@@ -742,7 +744,7 @@ void AutoSaveWidget::onRebuildClicked() {
     QTextStream out(&file);
 
     int processed = 0;
-    for (const QString& filename : files) {
+    for (const QString& filename : std::as_const(files)) {
       if (progress.wasCanceled()) {
         break;
       }

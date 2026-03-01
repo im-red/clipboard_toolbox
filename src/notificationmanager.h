@@ -10,6 +10,7 @@
 #include "event.h"
 
 class QProgressBar;
+class QGraphicsOpacityEffect;
 
 class Notification : public QObject {
   Q_OBJECT
@@ -65,12 +66,12 @@ class NotificationWidget : public QWidget {
   explicit NotificationWidget(Notification *notification, QWidget *parent = nullptr);
   ~NotificationWidget();
 
-  void slideOut();
+  void fadeOut();
   int notificationHeight() const { return height(); }
   Notification *notification() const { return m_notification; }
 
  signals:
-  void slideOutFinished();
+  void fadeOutFinished();
 
  private:
   void setupUi();
@@ -80,8 +81,9 @@ class NotificationWidget : public QWidget {
 
   Notification *m_notification;
   QProgressBar *m_progressBar = nullptr;
+  QGraphicsOpacityEffect *m_opacityEffect;
   QPropertyAnimation *m_opacityAnimation;
-  QPropertyAnimation *m_slideAnimation;
+  bool m_fadingOut = false;
 };
 
 class NotificationManager : public QObject {
@@ -101,7 +103,7 @@ class NotificationManager : public QObject {
   void ensureContainerVisible();
   void repositionContainer();
   void repositionContainerAnimated(int removedHeight);
-  void startSlideOut(NotificationWidget *widget);
+  void startFadeOut(NotificationWidget *widget);
   void removeNotification(NotificationWidget *widget);
 
   static NotificationManager *s_instance;

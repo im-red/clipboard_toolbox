@@ -1,5 +1,7 @@
 #include "downloadprogressmodel.h"
 
+#include "utils.h"
+
 DownloadProgressModel::DownloadProgressModel(QObject *parent) : QAbstractListModel(parent) {}
 
 DownloadProgressModel::~DownloadProgressModel() {}
@@ -94,10 +96,10 @@ void DownloadProgressModel::onDownloadProgress(qint64 bytesReceived, qint64 byte
 
   if (bytesTotal > 0) {
     item.progress = (int)((bytesReceived * 100) / bytesTotal);
-    item.status = QString("%1/%2 B").arg(bytesReceived).arg(bytesTotal);
+    item.status = QString("%1/%2").arg(utils::formatSize(bytesReceived)).arg(utils::formatSize(bytesTotal));
   } else {
     item.progress = 0;
-    item.status = QString("%1 B").arg(bytesReceived);
+    item.status = QString("%1").arg(utils::formatSize(bytesReceived));
   }
 
   emit dataChanged(index(row), index(row), {ProgressRole, StatusRole, BytesReceivedRole, BytesTotalRole});
@@ -116,7 +118,7 @@ void DownloadProgressModel::onFinished() {
     item.status = "Error";
   } else {
     item.progress = 100;
-    item.status = "Done";
+    item.status = QString("%1 (Done)").arg(utils::formatSize(item.bytesReceived));
   }
 
   emit dataChanged(index(row), index(row), {ProgressRole, StatusRole, IsFinishedRole, IsErrorRole});
