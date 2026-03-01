@@ -5,18 +5,88 @@
 #include <QGraphicsOpacityEffect>
 #include <QLabel>
 #include <QPainter>
+#include <QProgressBar>
 #include <QScreen>
 #include <QSizePolicy>
 
 NotificationManager *NotificationManager::s_instance = nullptr;
 
-NotificationWidget::NotificationWidget(const QString &title, const QString &message, EventLevel level, QWidget *parent)
-    : QWidget(parent), m_title(title), m_message(message), m_level(level) {
+Notification::Notification(const QString &title, const QString &message, EventLevel level, QObject *parent)
+    : QObject(parent), m_title(title), m_message(message), m_level(level) {
+  m_expirationTimer = new QTimer(this);
+  m_expirationTimer->setSingleShot(true);
+  connect(m_expirationTimer, &QTimer::timeout, this, &Notification::expired);
+}
+
+Notification::~Notification() {}
+
+void Notification::setHasProgress(bool has) {
+  if (m_hasProgress != has) {
+    m_hasProgress = has;
+    emit hasProgressChanged(has);
+    emit dataChanged();
+  }
+}
+
+void Notification::setProgress(int progress) {
+  if (m_progress != progress) {
+    m_progress = progress;
+    emit progressChanged(progress);
+    emit dataChanged();
+  }
+}
+
+void Notification::setIsError(bool isError) {
+  if (m_isError != isError) {
+    m_isError = isError;
+    emit isErrorChanged(isError);
+    emit dataChanged();
+  }
+}
+
+void Notification::startExpiration(int durationMs) {
+  if (durationMs < 0) {
+    durationMs = Notification::DEFAULT_DURATION;
+  }
+  m_remainingExpirationTime = durationMs;
+  m_expirationPaused = false;
+  m_expirationTimer->start(durationMs);
+}
+
+void Notification::pauseExpiration() {
+  if (m_expirationTimer->isActive() && !m_expirationPaused) {
+    m_remainingExpirationTime = m_expirationTimer->remainingTime();
+    m_expirationTimer->stop();
+    m_expirationPaused = true;
+  }
+}
+
+void Notification::resumeExpiration() {
+  if (m_expirationPaused && m_remainingExpirationTime > 0) {
+    m_expirationTimer->start(m_remainingExpirationTime);
+    m_expirationPaused = false;
+  }
+}
+
+void Notification::cancelExpiration() {
+  m_expirationTimer->stop();
+  m_remainingExpirationTime = 0;
+  m_expirationPaused = false;
+}
+
+void Notification::expireNow() {
+  m_expirationTimer->stop();
+  emit expired();
+}
+
+NotificationWidget::NotificationWidget(Notification *notification, QWidget *parent)
+    : QWidget(parent), m_notification(notification) {
   setupUi();
 
-  m_timer = new QTimer(this);
-  m_timer->setSingleShot(true);
-  connect(m_timer, &QTimer::timeout, this, &NotificationWidget::expired);
+  connect(m_notification, &Notification::dataChanged, this, [this]() {
+    updateProgressBar();
+    updateStyle();
+  });
 
   m_opacityAnimation = new QPropertyAnimation(this, "windowOpacity", this);
   m_opacityAnimation->setDuration(200);
@@ -49,32 +119,49 @@ void NotificationWidget::setupUi() {
   mainLayout->setContentsMargins(12, 8, 12, 8);
   mainLayout->setSpacing(4);
 
-  auto *titleLabel = new QLabel(m_title, this);
+  auto *titleLabel = new QLabel(m_notification->title(), this);
   titleLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
   mainLayout->addWidget(titleLabel);
 
-  auto *messageLabel = new QLabel(m_message, this);
+  auto *messageLabel = new QLabel(m_notification->message(), this);
   messageLabel->setWordWrap(true);
   messageLabel->setStyleSheet("font-size: 11px;");
   mainLayout->addWidget(messageLabel);
 
+  if (m_notification->hasProgress()) {
+    m_progressBar = new QProgressBar(this);
+    m_progressBar->setRange(0, 100);
+    m_progressBar->setValue(m_notification->progress());
+    m_progressBar->setTextVisible(true);
+    m_progressBar->setFixedHeight(16);
+    m_progressBar->setStyleSheet(
+        "QProgressBar {"
+        "  background-color: #3d3d3d;"
+        "  border: 1px solid #555;"
+        "  border-radius: 3px;"
+        "  text-align: center;"
+        "  color: white;"
+        "  font-size: 10px;"
+        "}"
+        "QProgressBar::chunk {"
+        "  background-color: #4a90d9;"
+        "  border-radius: 2px;"
+        "}");
+    mainLayout->addWidget(m_progressBar);
+  }
+
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
   adjustSize();
 
-  QString borderColor = levelToColor();
-  setStyleSheet(QString("NotificationWidget {"
-                        "  background-color: #2d2d2d;"
-                        "  border: 2px solid %1;"
-                        "  border-radius: 6px;"
-                        "}"
-                        "QLabel { color: #ffffff; background: transparent; }")
-                    .arg(borderColor));
-
+  updateStyle();
   setAttribute(Qt::WA_StyledBackground, true);
 }
 
 QString NotificationWidget::levelToColor() const {
-  switch (m_level) {
+  if (m_notification->isError()) {
+    return "#d94a4a";
+  }
+  switch (m_notification->level()) {
     case EventLevel::Info:
       return "#4a90d9";
     case EventLevel::Warning:
@@ -84,6 +171,23 @@ QString NotificationWidget::levelToColor() const {
     default:
       return "#4a90d9";
   }
+}
+
+void NotificationWidget::updateProgressBar() {
+  if (m_progressBar && m_notification->hasProgress()) {
+    m_progressBar->setValue(m_notification->progress());
+  }
+}
+
+void NotificationWidget::updateStyle() {
+  QString borderColor = levelToColor();
+  setStyleSheet(QString("NotificationWidget {"
+                        "  background-color: #2d2d2d;"
+                        "  border: 2px solid %1;"
+                        "  border-radius: 6px;"
+                        "}"
+                        "QLabel { color: #ffffff; background: transparent; }")
+                    .arg(borderColor));
 }
 
 NotificationManager *NotificationManager::instance() {
@@ -112,14 +216,16 @@ NotificationManager::~NotificationManager() {
   }
 }
 
-void NotificationManager::showNotification(const QString &title, const QString &message, EventLevel level) {
+Notification *NotificationManager::showNotification(const QString &title, const QString &message, EventLevel level) {
   while (m_notifications.size() >= MAX_NOTIFICATIONS) {
     auto *oldest = m_notifications.last();
-    startSlideOut(oldest);
+    oldest->notification()->expireNow();
   }
 
-  auto *widget = new NotificationWidget(title, message, level, m_container);
-  connect(widget, &NotificationWidget::expired, this, [this, widget]() { startSlideOut(widget); });
+  auto *notification = new Notification(title, message, level, this);
+  auto *widget = new NotificationWidget(notification, m_container);
+
+  connect(notification, &Notification::expired, this, [this, widget]() { startSlideOut(widget); });
 
   m_notifications.prepend(widget);
   m_layout->insertWidget(1, widget);
@@ -128,7 +234,33 @@ void NotificationManager::showNotification(const QString &title, const QString &
   ensureContainerVisible();
   repositionContainer();
 
-  QTimer::singleShot(NOTIFICATION_DURATION, widget, &NotificationWidget::expired);
+  notification->startExpiration();
+
+  return notification;
+}
+
+Notification *NotificationManager::showProgressNotification(const QString &title, const QString &message,
+                                                            EventLevel level) {
+  while (m_notifications.size() >= MAX_NOTIFICATIONS) {
+    auto *oldest = m_notifications.last();
+    oldest->notification()->expireNow();
+  }
+
+  auto *notification = new Notification(title, message, level, this);
+  notification->setHasProgress(true);
+
+  auto *widget = new NotificationWidget(notification, m_container);
+
+  connect(notification, &Notification::expired, this, [this, widget]() { startSlideOut(widget); });
+
+  m_notifications.prepend(widget);
+  m_layout->insertWidget(1, widget);
+
+  widget->show();
+  ensureContainerVisible();
+  repositionContainer();
+
+  return notification;
 }
 
 void NotificationManager::ensureContainerVisible() {
@@ -142,7 +274,6 @@ void NotificationManager::repositionContainer() {
   if (!screen) return;
 
   QRect screenGeometry = screen->availableGeometry();
-
   int x = screenGeometry.right() - m_container->width() - 10;
   int y = screenGeometry.bottom() - m_container->height() - 10;
 
@@ -186,6 +317,10 @@ void NotificationManager::removeNotification(NotificationWidget *widget) {
 
   m_notifications.removeOne(widget);
   m_layout->removeWidget(widget);
+
+  if (widget->notification()) {
+    widget->notification()->deleteLater();
+  }
   widget->deleteLater();
 
   if (m_notifications.isEmpty()) {

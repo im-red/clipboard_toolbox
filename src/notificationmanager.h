@@ -9,29 +9,77 @@
 
 #include "event.h"
 
+class QProgressBar;
+
+class Notification : public QObject {
+  Q_OBJECT
+
+ public:
+  static constexpr int DEFAULT_DURATION = 5000;
+
+  explicit Notification(const QString &title, const QString &message, EventLevel level, QObject *parent = nullptr);
+  ~Notification();
+
+  QString title() const { return m_title; }
+  QString message() const { return m_message; }
+  EventLevel level() const { return m_level; }
+
+  bool hasProgress() const { return m_hasProgress; }
+  void setHasProgress(bool has);
+
+  int progress() const { return m_progress; }
+  void setProgress(int progress);
+
+  bool isError() const { return m_isError; }
+  void setIsError(bool isError);
+
+  void startExpiration(int durationMs = -1);
+  void pauseExpiration();
+  void resumeExpiration();
+  void cancelExpiration();
+  void expireNow();
+
+ signals:
+  void expired();
+  void progressChanged(int progress);
+  void hasProgressChanged(bool hasProgress);
+  void isErrorChanged(bool isError);
+  void dataChanged();
+
+ private:
+  QString m_title;
+  QString m_message;
+  EventLevel m_level;
+  bool m_hasProgress = false;
+  int m_progress = 0;
+  bool m_isError = false;
+  QTimer *m_expirationTimer = nullptr;
+  bool m_expirationPaused = false;
+  int m_remainingExpirationTime = 0;
+};
+
 class NotificationWidget : public QWidget {
   Q_OBJECT
 
  public:
-  explicit NotificationWidget(const QString &title, const QString &message, EventLevel level,
-                              QWidget *parent = nullptr);
+  explicit NotificationWidget(Notification *notification, QWidget *parent = nullptr);
   ~NotificationWidget();
 
   void slideOut();
   int notificationHeight() const { return height(); }
+  Notification *notification() const { return m_notification; }
 
  signals:
-  void expired();
   void slideOutFinished();
 
  private:
   void setupUi();
   QString levelToColor() const;
+  void updateProgressBar();
+  void updateStyle();
 
-  QString m_title;
-  QString m_message;
-  EventLevel m_level;
-  QTimer *m_timer;
+  Notification *m_notification;
+  QProgressBar *m_progressBar = nullptr;
   QPropertyAnimation *m_opacityAnimation;
   QPropertyAnimation *m_slideAnimation;
 };
@@ -41,7 +89,10 @@ class NotificationManager : public QObject {
 
  public:
   static NotificationManager *instance();
-  void showNotification(const QString &title, const QString &message, EventLevel level);
+
+  Notification *showNotification(const QString &title, const QString &message, EventLevel level);
+  Notification *showProgressNotification(const QString &title, const QString &message,
+                                         EventLevel level = EventLevel::Info);
 
  private:
   explicit NotificationManager(QObject *parent = nullptr);

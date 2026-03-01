@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QHash>
 #include <QSet>
 #include <QWidget>
 
@@ -12,13 +13,14 @@ class QPushButton;
 class QSpinBox;
 class QLabel;
 class QNetworkAccessManager;
+class QNetworkReply;
 class QProgressBar;
 class QFile;
 class QScrollArea;
 class QVBoxLayout;
 class QListView;
-class DownloadProgressFloatingWindow;
 class DownloadProgressModel;
+class Notification;
 
 class AutoSaveWidget : public QWidget {
   Q_OBJECT
@@ -70,7 +72,8 @@ class AutoSaveWidget : public QWidget {
   QListView *m_downloadListView = nullptr;
   DownloadProgressModel *m_downloadModel = nullptr;
   QPushButton *m_clearFinishedButton = nullptr;
-  DownloadProgressFloatingWindow *m_downloadProgressWidget = nullptr;
+
+  QHash<QNetworkReply *, Notification *> m_downloadNotifications;
 
   QString m_targetDir;
   QStringList m_recentPaths;  // Added

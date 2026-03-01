@@ -37,8 +37,8 @@
 #include <QVBoxLayout>
 
 #include "clipboardmanager.h"
-#include "downloadprogressfloatingwindow.h"
 #include "downloadprogressmodel.h"
+#include "notificationmanager.h"
 #include "settingsmanager.h"
 
 // Delegate for rendering download items
@@ -127,8 +127,6 @@ static const QString kClearRecentPaths = "<Clear Recent Paths>";
 AutoSaveWidget::AutoSaveWidget(ClipboardManager* manager, QWidget* parent) : QWidget(parent), m_manager(manager) {
   m_networkManager = new QNetworkAccessManager(this);
   m_downloadModel = new DownloadProgressModel(this);
-  m_downloadProgressWidget = new DownloadProgressFloatingWindow(this);
-  m_downloadProgressWidget->setModel(m_downloadModel);
   setupUi();
   loadSettings();
   loadChecksums();
@@ -435,52 +433,73 @@ bool AutoSaveWidget::handleRemoteUrl(const QUrl& url, const QImage& fallbackImag
   }
 
   qDebug() << "Detected HTTP URL" << url.toString();
+
+  QString fileName = url.fileName();
+  if (fileName.isEmpty()) {
+    fileName = "download";
+  }
+
+  Notification* notification =
+      NotificationManager::instance()->showProgressNotification("Downloading", fileName, EventLevel::Info);
+  notification->cancelExpiration();
+
   QNetworkRequest request(url);
   request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (compatible; ClipboardToolbox/1.0)");
   QNetworkReply* reply = m_networkManager->get(request);
 
-  // Add to model (which updates all views)
+  m_downloadNotifications[reply] = notification;
+
   m_downloadModel->addDownload(reply, url);
 
-  // Show progress in floating widget
-  if (m_downloadProgressWidget) {
-    if (!m_downloadProgressWidget->isVisible()) {
-      m_downloadProgressWidget->show();
-    }
-  }
+  connect(reply, &QNetworkReply::downloadProgress, this,
+          [this, reply, notification](qint64 bytesReceived, qint64 bytesTotal) {
+            if (bytesTotal > 0) {
+              int progress = (int)((bytesReceived * 100) / bytesTotal);
+              notification->setProgress(progress);
+            }
+          });
 
-  connect(reply, &QNetworkReply::finished, this, [this, reply, url, fallbackImage]() {
-    // Processing logic (save image etc) remains here, but UI updates are handled by model
+  connect(reply, &QNetworkReply::finished, this, [this, reply, url, fallbackImage, notification]() {
+    m_downloadNotifications.remove(reply);
+
     reply->deleteLater();
 
     if (reply->error() != QNetworkReply::NoError) {
       qDebug() << "Network error:" << reply->errorString();
+      notification->setIsError(true);
+      notification->setProgress(100);
+      notification->setHasProgress(false);
+      notification->startExpiration(3000);
       m_manager->logAction("Network error downloading image: " + reply->errorString(), EventCategory::AutoSaveImage,
                            EventLevel::Error);
-    } else {
-      QByteArray data = reply->readAll();
-      qDebug() << "Downloaded data size:" << data.size() << "byte(s) from" << url.toString();
-      // m_manager->logAction(QString("Downloaded data size: %1 byte(s) from %2").arg(data.size()).arg(url.toString()),
-      //                      EventCategory::AutoSaveImage, EventLevel::Info);
+      return;
+    }
 
-      if (!QImage::fromData(data).isNull()) {
-        // Save original data to temp file to avoid re-encoding
-        QTemporaryFile tempFile;
-        if (tempFile.open()) {
-          tempFile.write(data);
-          tempFile.close();
-          saveImage(tempFile, url.fileName(), url.toString());
-          return;
-        } else {
-          qDebug() << "Failed to create temp file for URL image";
-        }
+    QByteArray data = reply->readAll();
+    qDebug() << "Downloaded data size:" << data.size() << "byte(s) from" << url.toString();
+
+    if (!QImage::fromData(data).isNull()) {
+      QTemporaryFile tempFile;
+      if (tempFile.open()) {
+        tempFile.write(data);
+        tempFile.close();
+        saveImage(tempFile, url.fileName(), url.toString());
+
+        notification->setHasProgress(false);
+        notification->startExpiration(2000);
+        return;
       } else {
-        qDebug() << "Downloaded data is not a valid image";
+        qDebug() << "Failed to create temp file for URL image";
       }
+    } else {
+      qDebug() << "Downloaded data is not a valid image";
     }
 
     qDebug() << "Using fallback image from clipboard";
     saveImage(fallbackImage);
+
+    notification->setHasProgress(false);
+    notification->startExpiration(2000);
   });
   return true;  // Assume handled asynchronously
 }
