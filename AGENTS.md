@@ -1,11 +1,21 @@
 # AI Agent Guidelines
 
+## Code Editing
+
+When editing files, only modify the code that is directly related to the task. Do NOT touch unrelated code, including:
+- Comments
+- Whitespace
+- Formatting
+- Unused code sections
+
+Keep changes minimal and focused on the specific task at hand.
+
 ## Build Verification
 
 After making any code edits, always run the build to verify your changes compile correctly:
 
 ```batch
-build.bat
+.\build.bat
 ```
 
 This script will:

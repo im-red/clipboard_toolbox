@@ -12,9 +12,12 @@
 #include <QMetaEnum>
 #include <QTableWidget>
 #include <QTextEdit>
+#include <QThreadPool>
 #include <QVBoxLayout>
+#include <QtConcurrent>
 
 #include "clipboardmanager.h"
+#include "utils.h"
 
 ContentWidget::ContentWidget(ClipboardManager *manager, QWidget *parent) : QWidget(parent), m_manager(manager) {
   setupUi();
@@ -78,6 +81,42 @@ void ContentWidget::setupUi() {
   });
 }
 
+ImageSizeResult ContentWidget::calculateImageSizes(QImage image) {
+  ImageSizeResult result;
+
+  QByteArray pngData;
+  QBuffer pngBuffer(&pngData);
+  pngBuffer.open(QIODevice::WriteOnly);
+  image.save(&pngBuffer, "PNG");
+  result.pngSize = pngData.size();
+
+  QByteArray jpgData;
+  QBuffer jpgBuffer(&jpgData);
+  jpgBuffer.open(QIODevice::WriteOnly);
+  image.save(&jpgBuffer, "JPG");
+  result.jpgSize = jpgData.size();
+
+  return result;
+}
+
+void ContentWidget::updateImageSizeInfo(const ImageSizeResult &result) {
+  if (m_pngSizeRow >= 0 && m_pngSizeRow < m_imageInfoTable->rowCount()) {
+    auto *item = m_imageInfoTable->item(m_pngSizeRow, 1);
+    if (item) {
+      item->setText(utils::formatSize(result.pngSize));
+      item->setToolTip(QString::number(result.pngSize) + " bytes");
+    }
+  }
+
+  if (m_jpgSizeRow >= 0 && m_jpgSizeRow < m_imageInfoTable->rowCount()) {
+    auto *item = m_imageInfoTable->item(m_jpgSizeRow, 1);
+    if (item) {
+      item->setText(utils::formatSize(result.jpgSize));
+      item->setToolTip(QString::number(result.jpgSize) + " bytes");
+    }
+  }
+}
+
 void ContentWidget::updateContent() {
   bool hasImage = m_manager->hasImage();
   bool hasText = m_manager->hasText();
@@ -86,6 +125,7 @@ void ContentWidget::updateContent() {
     QImage image = m_manager->latestImage();
     if (!image.isNull()) {
       QSize targetSize = m_imageLabel->size();
+      // Ensure target size is valid
       if (targetSize.width() <= 0 || targetSize.height() <= 0) {
         targetSize = QSize(640, 240);
       }
@@ -106,23 +146,14 @@ void ContentWidget::updateContent() {
           valueItem->setToolTip(tooltip);
         }
         m_imageInfoTable->setItem(row, 1, valueItem);
+        return row;
       };
 
       addRow("Width", QString::number(image.width()));
       addRow("Height", QString::number(image.height()));
       addRow("Depth", QString::number(image.depth()) + " bit");
 
-      auto formatSize = [](qint64 bytes) -> QString {
-        if (bytes >= 1024 * 1024) {
-          return QString::number(bytes / (1024.0 * 1024.0), 'f', 2) + " MB";
-        } else if (bytes >= 1024) {
-          return QString::number(bytes / 1024.0, 'f', 2) + " KB";
-        } else {
-          return QString::number(bytes) + " B";
-        }
-      };
-
-      addRow("Raw Size", formatSize(image.sizeInBytes()), QString::number(image.sizeInBytes()) + " bytes");
+      addRow("Raw Size", utils::formatSize(image.sizeInBytes()), QString::number(image.sizeInBytes()) + " bytes");
 
       // PNG Size
       // Note: The size here might differ from the original file size because:
@@ -131,20 +162,10 @@ void ContentWidget::updateContent() {
       // 2. Saving as PNG uses Qt's default compression (zlib level -1, usually
       // 6).
       // 3. Original files might be 8-bit indexed or highly optimized.
-      if (image.sizeInBytes() < 100 * 1024 * 1024) {
-        QByteArray pngData;
-        QBuffer pngBuffer(&pngData);
-        pngBuffer.open(QIODevice::WriteOnly);
-        image.save(&pngBuffer, "PNG");  // Uses default compression (level -1)
-        addRow("PNG Size", formatSize(pngData.size()), QString::number(pngData.size()) + " bytes");
-      }
+      m_pngSizeRow = addRow("PNG Size", "Calculating...");
 
       // JPG Size
-      QByteArray jpgData;
-      QBuffer jpgBuffer(&jpgData);
-      jpgBuffer.open(QIODevice::WriteOnly);
-      image.save(&jpgBuffer, "JPG");
-      addRow("JPG Size", formatSize(jpgData.size()), QString::number(jpgData.size()) + " bytes");
+      m_jpgSizeRow = addRow("JPG Size", "Calculating...");
 
       QString format = "Bitmap";
       // Use QMetaEnum to convert QImage::Format enum to string
@@ -156,6 +177,11 @@ void ContentWidget::updateContent() {
         }
       }
       addRow("Format", format);
+
+      QThreadPool::globalInstance()->start([this, image]() {
+        ImageSizeResult result = calculateImageSizes(image);
+        QMetaObject::invokeMethod(this, [this, result]() { updateImageSizeInfo(result); }, Qt::QueuedConnection);
+      });
     } else {
       m_imageLabel->setVisible(false);
       m_imageInfoTable->setVisible(false);
@@ -184,7 +210,6 @@ void ContentWidget::resizeEvent(QResizeEvent *event) {
     QImage image = m_manager->latestImage();
     if (!image.isNull()) {
       QSize targetSize = m_imageLabel->size();
-      // Ensure target size is valid
       if (targetSize.width() <= 0 || targetSize.height() <= 0) {
         return;
       }

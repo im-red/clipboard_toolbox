@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Network Concurrent)
 
 qt_standard_project_setup()
 
@@ -30,7 +30,7 @@ set_target_properties(appclipboard_toolbox PROPERTIES
 )
 
 target_link_libraries(appclipboard_toolbox
-    PRIVATE Qt6::Widgets Qt6::Network
+    PRIVATE Qt6::Widgets Qt6::Network Qt6::Concurrent
 )
 
 target_include_directories(appclipboard_toolbox PRIVATE src)
