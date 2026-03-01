@@ -110,6 +110,5 @@ class NotificationManager : public QObject {
   QWidget *m_container;
   QVBoxLayout *m_layout;
   QList<NotificationWidget *> m_notifications;
-  static constexpr int MAX_NOTIFICATIONS = 5;
-  static constexpr int NOTIFICATION_DURATION = 5000;
+  static constexpr int MAX_NOTIFICATIONS = 10;
 };

@@ -126,7 +126,7 @@ static const QString kClearRecentPaths = "<Clear Recent Paths>";
 
 AutoSaveWidget::AutoSaveWidget(ClipboardManager* manager, QWidget* parent) : QWidget(parent), m_manager(manager) {
   m_downloadModel = new DownloadProgressModel(this);
-  m_downloadQueue = new DownloadQueue(this);
+  m_downloadQueue = new DownloadQueue(1, this);
   setupUi();
   loadSettings();
   loadChecksums();

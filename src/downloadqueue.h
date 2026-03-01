@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QMap>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QObject>
@@ -16,18 +17,15 @@ class DownloadQueue : public QObject {
   using ProgressCallback = std::function<void(qint64 bytesReceived, qint64 bytesTotal)>;
   using FinishedCallback = std::function<void(const QByteArray &data, bool success, const QString &errorString)>;
 
-  explicit DownloadQueue(QObject *parent = nullptr);
+  explicit DownloadQueue(int maxConcurrent = 1, QObject *parent = nullptr);
   ~DownloadQueue();
 
   void enqueue(const QUrl &url, StartedCallback startedCallback, ProgressCallback progressCallback,
                FinishedCallback finishedCallback);
   bool isEmpty() const;
   int pendingCount() const;
+  int activeCount() const;
   bool isDownloading() const;
-
- private slots:
-  void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
-  void onFinished();
 
  private:
   struct DownloadItem {
@@ -41,6 +39,6 @@ class DownloadQueue : public QObject {
 
   QNetworkAccessManager *m_networkManager;
   QQueue<DownloadItem> m_queue;
-  QNetworkReply *m_currentReply = nullptr;
-  DownloadItem m_currentItem;
+  QMap<QNetworkReply *, DownloadItem> m_activeDownloads;
+  int m_maxConcurrent;
 };

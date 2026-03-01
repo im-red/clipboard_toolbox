@@ -186,7 +186,7 @@ void NotificationWidget::updateStyle() {
   QString borderColor = levelToColor();
   setStyleSheet(QString("NotificationWidget {"
                         "  background-color: #2d2d2d;"
-                        "  border: 2px solid %1;"
+                        "  border: 5px solid %1;"
                         "  border-radius: 6px;"
                         "}"
                         "QLabel { color: #ffffff; background: transparent; }")
