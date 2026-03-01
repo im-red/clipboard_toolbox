@@ -19,6 +19,8 @@ QVariant DownloadProgressModel::data(const QModelIndex &index, int role) const {
   switch (role) {
     case Qt::DisplayRole:
       return item.url.fileName().isEmpty() ? item.url.toString() : item.url.fileName();
+    case IdRole:
+      return item.id;
     case UrlRole:
       return item.url;
     case ProgressRole:
@@ -33,8 +35,10 @@ QVariant DownloadProgressModel::data(const QModelIndex &index, int role) const {
       return item.isFinished;
     case IsErrorRole:
       return item.isError;
-    case ReplyRole:
-      return QVariant::fromValue(item.reply);
+    case IsQueuedRole:
+      return item.isQueued;
+    case IsConnectingRole:
+      return item.isConnecting;
   }
 
   return QVariant();
@@ -43,6 +47,7 @@ QVariant DownloadProgressModel::data(const QModelIndex &index, int role) const {
 QHash<int, QByteArray> DownloadProgressModel::roleNames() const {
   QHash<int, QByteArray> roles;
   roles[Qt::DisplayRole] = "display";
+  roles[IdRole] = "id";
   roles[UrlRole] = "url";
   roles[ProgressRole] = "progress";
   roles[StatusRole] = "status";
@@ -50,29 +55,76 @@ QHash<int, QByteArray> DownloadProgressModel::roleNames() const {
   roles[BytesTotalRole] = "bytesTotal";
   roles[IsFinishedRole] = "isFinished";
   roles[IsErrorRole] = "isError";
+  roles[IsQueuedRole] = "isQueued";
+  roles[IsConnectingRole] = "isConnecting";
   return roles;
 }
 
-void DownloadProgressModel::addDownload(QNetworkReply *reply, const QUrl &url) {
-  beginInsertRows(QModelIndex(), 0, 0);  // Insert at top
+int DownloadProgressModel::addQueuedDownload(const QUrl &url) {
+  beginInsertRows(QModelIndex(), 0, 0);
   DownloadProgressItem item;
+  item.id = m_nextId++;
   item.url = url;
-  item.reply = reply;
-  item.status = "Connecting...";
+  item.isQueued = true;
+  item.status = "Queued";
   m_downloads.prepend(item);
   endInsertRows();
-
-  connect(reply, &QNetworkReply::downloadProgress, this, &DownloadProgressModel::onDownloadProgress);
-  connect(reply, &QNetworkReply::finished, this, &DownloadProgressModel::onFinished);
-  connect(reply, &QObject::destroyed, this, &DownloadProgressModel::onReplyDestroyed);
+  return item.id;
 }
 
-void DownloadProgressModel::removeDownload(int index) {
-  if (index < 0 || index >= m_downloads.count()) return;
+void DownloadProgressModel::setConnecting(int id) {
+  int row = findRowById(id);
+  if (row < 0) return;
 
-  beginRemoveRows(QModelIndex(), index, index);
-  m_downloads.removeAt(index);
-  endRemoveRows();
+  DownloadProgressItem &item = m_downloads[row];
+  item.isQueued = false;
+  item.isConnecting = true;
+  item.status = "Connecting...";
+
+  emit dataChanged(index(row), index(row), {StatusRole, IsQueuedRole, IsConnectingRole});
+}
+
+void DownloadProgressModel::updateProgress(int id, qint64 bytesReceived, qint64 bytesTotal) {
+  int row = findRowById(id);
+  if (row < 0) return;
+
+  DownloadProgressItem &item = m_downloads[row];
+  item.isQueued = false;
+  item.isConnecting = false;
+  item.bytesReceived = bytesReceived;
+  item.bytesTotal = bytesTotal;
+
+  if (bytesTotal > 0) {
+    item.progress = (int)((bytesReceived * 100) / bytesTotal);
+    item.status = QString("%1/%2").arg(utils::formatSize(bytesReceived)).arg(utils::formatSize(bytesTotal));
+  } else {
+    item.progress = 0;
+    item.status = QString("%1").arg(utils::formatSize(bytesReceived));
+  }
+
+  emit dataChanged(index(row), index(row),
+                   {ProgressRole, StatusRole, BytesReceivedRole, BytesTotalRole, IsQueuedRole, IsConnectingRole});
+}
+
+void DownloadProgressModel::setFinished(int id, bool success) {
+  int row = findRowById(id);
+  if (row < 0) return;
+
+  DownloadProgressItem &item = m_downloads[row];
+  item.isFinished = true;
+  item.isQueued = false;
+  item.isConnecting = false;
+
+  if (!success) {
+    item.isError = true;
+    item.status = "Error";
+  } else {
+    item.progress = 100;
+    item.status = QString("%1 (Done)").arg(utils::formatSize(item.bytesReceived));
+  }
+
+  emit dataChanged(index(row), index(row),
+                   {ProgressRole, StatusRole, IsFinishedRole, IsErrorRole, IsQueuedRole, IsConnectingRole});
 }
 
 void DownloadProgressModel::clearFinished() {
@@ -85,64 +137,9 @@ void DownloadProgressModel::clearFinished() {
   }
 }
 
-void DownloadProgressModel::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal) {
-  QNetworkReply *reply = qobject_cast<QNetworkReply *>(sender());
-  int row = findRowByReply(reply);
-  if (row < 0) return;
-
-  DownloadProgressItem &item = m_downloads[row];
-  item.bytesReceived = bytesReceived;
-  item.bytesTotal = bytesTotal;
-
-  if (bytesTotal > 0) {
-    item.progress = (int)((bytesReceived * 100) / bytesTotal);
-    item.status = QString("%1/%2").arg(utils::formatSize(bytesReceived)).arg(utils::formatSize(bytesTotal));
-  } else {
-    item.progress = 0;
-    item.status = QString("%1").arg(utils::formatSize(bytesReceived));
-  }
-
-  emit dataChanged(index(row), index(row), {ProgressRole, StatusRole, BytesReceivedRole, BytesTotalRole});
-}
-
-void DownloadProgressModel::onFinished() {
-  QNetworkReply *reply = qobject_cast<QNetworkReply *>(sender());
-  int row = findRowByReply(reply);
-  if (row < 0) return;
-
-  DownloadProgressItem &item = m_downloads[row];
-  item.isFinished = true;
-
-  if (reply->error() != QNetworkReply::NoError) {
-    item.isError = true;
-    item.status = "Error";
-  } else {
-    item.progress = 100;
-    item.status = QString("%1 (Done)").arg(utils::formatSize(item.bytesReceived));
-  }
-
-  emit dataChanged(index(row), index(row), {ProgressRole, StatusRole, IsFinishedRole, IsErrorRole});
-}
-
-void DownloadProgressModel::onReplyDestroyed(QObject *obj) {
-  // Reply might be deleted externally or auto-deleted
-  // We keep the record in model until explicitly removed, but clear pointer
-  // Actually, if we want to remove from list when reply is destroyed, we can do it here.
-  // But usually we want to keep "Finished" state visible.
-  // So just nullify the pointer to avoid crash if accessed.
-  /*
+int DownloadProgressModel::findRowById(int id) {
   for (int i = 0; i < m_downloads.count(); ++i) {
-  if (m_downloads[i].reply == obj) {
-      m_downloads[i].reply = nullptr;
-      break;
-  }
-  }
-  */
-}
-
-int DownloadProgressModel::findRowByReply(QNetworkReply *reply) {
-  for (int i = 0; i < m_downloads.count(); ++i) {
-    if (m_downloads[i].reply == reply) return i;
+    if (m_downloads[i].id == id) return i;
   }
   return -1;
 }

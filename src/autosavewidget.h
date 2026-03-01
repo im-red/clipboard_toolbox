@@ -7,20 +7,18 @@
 
 class ClipboardManager;
 class QCheckBox;
-class QComboBox;  // Added QComboBox
+class QComboBox;
 class QLineEdit;
 class QPushButton;
 class QSpinBox;
 class QLabel;
-class QNetworkAccessManager;
-class QNetworkReply;
 class QProgressBar;
 class QFile;
 class QScrollArea;
 class QVBoxLayout;
 class QListView;
 class DownloadProgressModel;
-class Notification;
+class DownloadQueue;
 
 class AutoSaveWidget : public QWidget {
   Q_OBJECT
@@ -33,12 +31,12 @@ class AutoSaveWidget : public QWidget {
   void onToggleChanged(int state);
   void onMaxSizeChanged(int value);
   void onBrowseClicked();
-  void onOpenDirClicked();         // Added
-  void onPathSelected(int index);  // Added
+  void onOpenDirClicked();
+  void onPathSelected(int index);
   void onCleanClicked();
   void onRebuildClicked();
   void onClipboardChanged();
-  void onClearFinishedClicked();  // Added
+  void onClearFinishedClicked();
 
  private:
   void setupUi();
@@ -53,33 +51,31 @@ class AutoSaveWidget : public QWidget {
   bool processImageContent();
   bool handleRemoteUrl(const QUrl &url, const QImage &fallbackImage = QImage());
   bool handleLocalPath(const QString &path);
-  void updateRecentPaths(const QString &path);  // Helper
-  void populatePathCombo();                     // Helper
+  void updateRecentPaths(const QString &path);
+  void populatePathCombo();
 
   ClipboardManager *m_manager = nullptr;
   QCheckBox *m_enableCheckBox = nullptr;
   QLabel *m_pathLabel = nullptr;
-  QComboBox *m_pathCombo = nullptr;  // Replaced m_pathEdit
+  QComboBox *m_pathCombo = nullptr;
   QPushButton *m_browseButton = nullptr;
-  QPushButton *m_openDirButton = nullptr;  // Added
+  QPushButton *m_openDirButton = nullptr;
   QPushButton *m_cleanButton = nullptr;
   QPushButton *m_rebuildButton = nullptr;
   QLabel *m_maxSizeLabel = nullptr;
   QSpinBox *m_maxSizeSpinBox = nullptr;
   QProgressBar *m_progressBar = nullptr;
 
-  // New UI elements for multiple downloads
   QListView *m_downloadListView = nullptr;
   DownloadProgressModel *m_downloadModel = nullptr;
   QPushButton *m_clearFinishedButton = nullptr;
 
-  QHash<QNetworkReply *, Notification *> m_downloadNotifications;
+  DownloadQueue *m_downloadQueue = nullptr;
 
   QString m_targetDir;
-  QStringList m_recentPaths;  // Added
+  QStringList m_recentPaths;
   bool m_isEnabled = false;
   bool m_isRebuilding = false;
   int m_maxSizeMB = 30;
   QSet<QByteArray> m_seenChecksums;
-  QNetworkAccessManager *m_networkManager = nullptr;
 };

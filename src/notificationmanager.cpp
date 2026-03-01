@@ -18,7 +18,7 @@ Notification::Notification(const QString &title, const QString &message, EventLe
   connect(m_expirationTimer, &QTimer::timeout, this, &Notification::expired);
 }
 
-Notification::~Notification() {}
+Notification::~Notification() { qDebug() << this; }
 
 void Notification::setHasProgress(bool has) {
   if (m_hasProgress != has) {

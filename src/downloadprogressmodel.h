@@ -1,12 +1,12 @@
 #pragma once
 
 #include <QAbstractListModel>
-#include <QNetworkReply>
-#include <QUrl>
 #include <QList>
 #include <QObject>
+#include <QUrl>
 
 struct DownloadProgressItem {
+  int id = 0;
   QUrl url;
   qint64 bytesReceived = 0;
   qint64 bytesTotal = 0;
@@ -14,7 +14,8 @@ struct DownloadProgressItem {
   QString status;
   bool isFinished = false;
   bool isError = false;
-  QNetworkReply *reply = nullptr;
+  bool isQueued = false;
+  bool isConnecting = false;
 };
 
 class DownloadProgressModel : public QAbstractListModel {
@@ -22,14 +23,16 @@ class DownloadProgressModel : public QAbstractListModel {
 
  public:
   enum Roles {
-    UrlRole = Qt::UserRole + 1,
+    IdRole = Qt::UserRole + 1,
+    UrlRole,
     ProgressRole,
     StatusRole,
     BytesReceivedRole,
     BytesTotalRole,
     IsFinishedRole,
     IsErrorRole,
-    ReplyRole
+    IsQueuedRole,
+    IsConnectingRole
   };
 
   explicit DownloadProgressModel(QObject *parent = nullptr);
@@ -39,16 +42,14 @@ class DownloadProgressModel : public QAbstractListModel {
   QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
   QHash<int, QByteArray> roleNames() const override;
 
-  void addDownload(QNetworkReply *reply, const QUrl &url);
-  void removeDownload(int index);
+  int addQueuedDownload(const QUrl &url);
+  void setConnecting(int id);
+  void updateProgress(int id, qint64 bytesReceived, qint64 bytesTotal);
+  void setFinished(int id, bool success);
   void clearFinished();
-
- private slots:
-  void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
-  void onFinished();
-  void onReplyDestroyed(QObject *obj);
 
  private:
   QList<DownloadProgressItem> m_downloads;
-  int findRowByReply(QNetworkReply *reply);
+  int m_nextId = 1;
+  int findRowById(int id);
 };
